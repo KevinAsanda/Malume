@@ -85,6 +85,14 @@ dotnet_naming_style.underscore_camel_case.capitalization = camel_case
 [**/*Migrations/**/*.cs]
 generated_code = true
 
+# Malume.Shared.Contracts intentionally uses "Shared" per the system blueprint
+[src/Malume.Shared.Contracts/**/*.cs]
+dotnet_diagnostic.CA1716.severity = none
+
+# Allow standard Method_Condition_ExpectedBehavior naming in test projects
+[tests/**/*.cs]
+dotnet_diagnostic.CA1707.severity = none
+
 # Razor / Blazor
 [*.{razor,cshtml}]
 indent_size = 4

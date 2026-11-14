@@ -1,0 +1,30 @@
+# Exclude VCS, IDE, local build artifacts, docs, and mobile trees from .NET API Docker context
+.git/
+.vs/
+.vscode/
+.idea/
+**/bin/
+**/obj/
+**/TestResults/
+artifacts/
+publish/
+release-web/
+
+# Secrets & local env
+.env
+.env.*
+appsettings.Local.json
+appsettings.*.Local.json
+appsettings.Development.json
+*.pfx
+*.snk
+*.jks
+*.keystore
+
+# Non-API trees & large docs
+docs/
+mobile/
+tests/
+infra/
+*.md
+*.pdf

@@ -1,0 +1,11 @@
+@Malume_Api_HostAddress = http://localhost:5144
+
+GET {{Malume_Api_HostAddress}}/api/v1/health
+Accept: application/json
+
+###
+
+GET {{Malume_Api_HostAddress}}/api/v1/health/database
+Accept: application/json
+
+###
