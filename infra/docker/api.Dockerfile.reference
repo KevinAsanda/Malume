@@ -1,0 +1,36 @@
+# Reference multi-stage Dockerfile for Malume.Api (.NET 8)
+# Once you create src/Malume.Api in Visual Studio, copy this file to:
+#   src/Malume.Api/Dockerfile
+# Build from repository root:
+#   docker build -f src/Malume.Api/Dockerfile -t malume-api:local .
+
+FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS base
+USER app
+WORKDIR /app
+EXPOSE 8080
+
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+ARG BUILD_CONFIGURATION=Release
+WORKDIR /src
+
+# Copy root governance & project files first to leverage Docker layer caching
+COPY ["global.json", "."]
+COPY ["Directory.Build.props", "."]
+COPY ["Directory.Packages.props", "."]
+COPY ["src/Malume.Domain/Malume.Domain.csproj", "src/Malume.Domain/"]
+COPY ["src/Malume.Application/Malume.Application.csproj", "src/Malume.Application/"]
+COPY ["src/Malume.Infrastructure/Malume.Infrastructure.csproj", "src/Malume.Infrastructure/"]
+COPY ["src/Malume.Shared.Contracts/Malume.Shared.Contracts.csproj", "src/Malume.Shared.Contracts/"]
+COPY ["src/Malume.Api/Malume.Api.csproj", "src/Malume.Api/"]
+
+RUN dotnet restore "src/Malume.Api/Malume.Api.csproj"
+
+COPY ["src/", "src/"]
+WORKDIR "/src/src/Malume.Api"
+RUN dotnet publish "Malume.Api.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
+
+FROM base AS final
+WORKDIR /app
+COPY --from=build /app/publish .
+ENV ASPNETCORE_HTTP_PORTS=8080
+ENTRYPOINT ["dotnet", "Malume.Api.dll"]

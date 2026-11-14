@@ -1,0 +1,46 @@
+<Project>
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <CentralPackageTransitivePinningEnabled>false</CentralPackageTransitivePinningEnabled>
+  </PropertyGroup>
+
+  <ItemGroup Label="Entity Framework Core &amp; Spatial (SQL Server + NetTopologySuite)">
+    <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="8.0.34" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.SqlServer" Version="8.0.34" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.SqlServer.NetTopologySuite" Version="8.0.34" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.34" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Tools" Version="8.0.34" />
+    <PackageVersion Include="NetTopologySuite" Version="2.5.0" />
+  </ItemGroup>
+
+  <ItemGroup Label="ASP.NET Core, SignalR, OpenAPI &amp; Blazor WebAssembly">
+    <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.34" />
+    <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="8.0.34" />
+    <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly" Version="8.0.34" />
+    <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="8.0.34" />
+    <PackageVersion Include="Microsoft.AspNetCore.SignalR.Client" Version="8.0.34" />
+    <PackageVersion Include="Microsoft.Extensions.Http" Version="8.0.1" />
+    <PackageVersion Include="Swashbuckle.AspNetCore" Version="8.1.4" />
+  </ItemGroup>
+
+  <ItemGroup Label="Application Layer, CQRS, Validation, Hangfire &amp; Push Notifications">
+    <PackageVersion Include="MediatR" Version="12.5.0" />
+    <PackageVersion Include="FluentValidation" Version="12.2.0" />
+    <PackageVersion Include="FluentValidation.DependencyInjectionExtensions" Version="12.2.0" />
+    <PackageVersion Include="Hangfire.Core" Version="1.8.25" />
+    <PackageVersion Include="Hangfire.AspNetCore" Version="1.8.25" />
+    <PackageVersion Include="Hangfire.SqlServer" Version="1.8.25" />
+    <PackageVersion Include="FirebaseAdmin" Version="3.7.1" />
+  </ItemGroup>
+
+  <ItemGroup Label="Testing &amp; Integration (xUnit + Testcontainers)">
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.12.0" />
+    <PackageVersion Include="xunit" Version="2.9.3" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="4.0.1" />
+    <PackageVersion Include="coverlet.collector" Version="8.0.1" />
+    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="8.0.34" />
+    <PackageVersion Include="Testcontainers.MsSql" Version="4.16.0" />
+    <PackageVersion Include="NSubstitute" Version="6.2.0" />
+    <PackageVersion Include="Shouldly" Version="4.3.0" />
+  </ItemGroup>
+</Project>

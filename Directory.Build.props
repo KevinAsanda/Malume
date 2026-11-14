@@ -1,0 +1,21 @@
+<Project>
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>12.0</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Deterministic>true</Deterministic>
+
+    <!-- Code Quality & Analyzers -->
+    <AnalysisLevel>8.0-recommended</AnalysisLevel>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <TreatWarningsAsErrors Condition="'$(CI)' == 'true'">true</TreatWarningsAsErrors>
+
+    <!-- Solution Metadata -->
+    <Authors>Malume Platform</Authors>
+    <Company>Malume</Company>
+    <Product>Malume Scholar Transport &amp; Hybrid E-Hailing Platform</Product>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+</Project>
