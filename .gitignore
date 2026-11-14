@@ -64,6 +64,7 @@ secrets/
 *.key
 *.jks
 *.keystore
+!debug.keystore
 google-services.json
 GoogleService-Info.plist
 *firebase-adminsdk*.json
