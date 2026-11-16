@@ -1,0 +1,212 @@
+name: Malume Full-Stack & Mobile CI/CD Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  backend-verify-and-test:
+    name: 1. .NET 8 Clean Architecture & Spatial Integration Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET 8 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore & Build Solution
+        run: dotnet build Malume.sln --configuration Release
+
+      - name: Run Domain Unit Tests
+        run: dotnet test tests/Malume.Domain.UnitTests/Malume.Domain.UnitTests.csproj --no-build --configuration Release
+
+      - name: Run Application Tests
+        run: dotnet test tests/Malume.Application.Tests/Malume.Application.Tests.csproj --no-build --configuration Release
+
+      - name: Run Spatial Integration Tests (Testcontainers SQL Server)
+        run: dotnet test tests/Malume.Api.IntegrationTests/Malume.Api.IntegrationTests.csproj --no-build --configuration Release
+
+  backend-docker-deploy:
+    name: 2. Build & Push ASP.NET Core API Docker Container
+    needs: backend-verify-and-test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Docker Metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}/malume-api
+          tags: |
+            type=sha,prefix=
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build (and Push on main) API Docker Image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: src/Malume.Api/Dockerfile
+          push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  web-portal-blazor-deploy:
+    name: 3. Publish Blazor WASM Admin/Fleet/School Portal
+    needs: backend-verify-and-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET 8 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Publish Blazor WebAssembly Release Bundle
+        run: dotnet publish src/Malume.Web.Portal/Malume.Web.Portal.csproj -c Release -o release-web
+
+      - name: Upload Blazor WebAssembly Bundle Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: malume-web-portal
+          path: release-web/wwwroot
+          if-no-files-found: error
+          retention-days: 14
+
+  android-driver-kotlin-apk:
+    name: 4. Build & Sign Native Android (Kotlin) Driver APK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Java 25 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '25'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Restore Firebase & Signing Config
+        env:
+          DRIVER_GOOGLE_SERVICES_JSON_BASE64: ${{ secrets.DRIVER_GOOGLE_SERVICES_JSON_BASE64 }}
+          DRIVER_KEYSTORE_BASE64: ${{ secrets.DRIVER_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$DRIVER_GOOGLE_SERVICES_JSON_BASE64" ]; then
+            echo "::error::Missing DRIVER_GOOGLE_SERVICES_JSON_BASE64 repository secret."
+            exit 1
+          fi
+          printf '%s' "$DRIVER_GOOGLE_SERVICES_JSON_BASE64" | base64 --decode > mobile/malume-driver-android/app/google-services.json
+
+          if [ -n "$DRIVER_KEYSTORE_BASE64" ]; then
+            printf '%s' "$DRIVER_KEYSTORE_BASE64" | base64 --decode > "${RUNNER_TEMP}/driver-release.jks"
+            echo "ANDROID_KEYSTORE_PATH=${RUNNER_TEMP}/driver-release.jks" >> "${GITHUB_ENV}"
+          fi
+
+      - name: Run Kotlin Unit Tests & Assemble Release APK
+        working-directory: mobile/malume-driver-android
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.DRIVER_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.DRIVER_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.DRIVER_KEY_PASSWORD }}
+        run: |
+          chmod +x ./gradlew
+          ./gradlew testDebugUnitTest assembleRelease --no-daemon
+
+      - name: Upload Driver Release APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: malume-driver-release-apk
+          path: mobile/malume-driver-android/app/build/outputs/apk/release/*.apk
+          if-no-files-found: error
+          retention-days: 14
+
+  android-parent-rn-apk:
+    name: 5. Build & Sign React Native (TypeScript) Parent APK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: mobile/malume-parent-rn/package-lock.json
+
+      - name: Setup Java 17 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Restore Firebase & Signing Config
+        env:
+          PARENT_GOOGLE_SERVICES_JSON_BASE64: ${{ secrets.PARENT_GOOGLE_SERVICES_JSON_BASE64 }}
+          PARENT_KEYSTORE_BASE64: ${{ secrets.PARENT_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$PARENT_GOOGLE_SERVICES_JSON_BASE64" ]; then
+            printf '%s' "$PARENT_GOOGLE_SERVICES_JSON_BASE64" | base64 --decode > mobile/malume-parent-rn/android/app/google-services.json
+          fi
+
+          if [ -n "$PARENT_KEYSTORE_BASE64" ]; then
+            printf '%s' "$PARENT_KEYSTORE_BASE64" | base64 --decode > "${RUNNER_TEMP}/parent-release.jks"
+            echo "ANDROID_KEYSTORE_PATH=${RUNNER_TEMP}/parent-release.jks" >> "${GITHUB_ENV}"
+          fi
+
+      - name: Install Dependencies, Typecheck & Jest Tests
+        working-directory: mobile/malume-parent-rn
+        run: |
+          npm ci
+          npx tsc --noEmit
+          npm test -- --watchAll=false
+
+      - name: Assemble Signed Parent Release APK
+        working-directory: mobile/malume-parent-rn/android
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.PARENT_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.PARENT_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.PARENT_KEY_PASSWORD }}
+        run: |
+          chmod +x ./gradlew
+          ./gradlew assembleRelease --no-daemon
+
+      - name: Upload Parent Release APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: malume-parent-release-apk
+          path: mobile/malume-parent-rn/android/app/build/outputs/apk/release/*.apk
+          if-no-files-found: error
+          retention-days: 14

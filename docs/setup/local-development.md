@@ -41,5 +41,23 @@ dotnet ef database update --project src/Malume.Infrastructure --startup-project 
 
 ## 4. Secrets Hygiene
 
-* Never commit `.env`, `appsettings.Development.json`, `appsettings.Local.json`, Android keystores (`*.jks`, `*.keystore`), or Firebase service keys (`*firebase-adminsdk*.json`).
-* Use `dotnet user-secrets` in `src/Malume.Api` for local JWT keys, SQL Server passwords, and Paystack test secret keys.
+* Never commit `.env`, `appsettings.Development.json`, `appsettings.Local.json`, `google-services.json`, Android release keystores (`*.jks`, `*.keystore` outside RN `debug.keystore`), or Firebase service keys (`*firebase-adminsdk*.json`).
+* Use `dotnet user-secrets` in `src/Malume.Api` for local SQL Server passwords, `Paystack:SecretKey` / `Paystack:PublicKey`, JWT keys, and Firebase Admin SDK credentials paths.
+* Store local Android release keystores (`.jks`) inside the git-ignored `secrets/` directory.
+
+---
+
+## 5. CI/CD Pipeline & GitHub Repository Secrets
+
+[`.github/workflows/ci-cd-main.yml`](../../.github/workflows/ci-cd-main.yml) runs on pushes and pull requests to `main`:
+
+1. **`backend-verify-and-test`**: Builds `Malume.sln` (`Release`, `CI=true` treats warnings as errors) and runs Domain unit tests, Application tests, and Testcontainers SQL Server integration tests.
+2. **`backend-docker-deploy`**: Builds [src/Malume.Api/Dockerfile](../../src/Malume.Api/Dockerfile) and pushes to GHCR on `main` pushes (`ghcr.io/<owner>/malume/malume-api`).
+3. **`web-portal-blazor-deploy`**: Publishes `src/Malume.Web.Portal` in `Release` and uploads `malume-web-portal`.
+4. **`android-driver-kotlin-apk`**: Builds `mobile/malume-driver-android` on Temurin JDK 25, runs `testDebugUnitTest` + `assembleRelease`, and uploads `malume-driver-release-apk`.
+5. **`android-parent-rn-apk`**: Runs `tsc`, Jest, and `assembleRelease` on `mobile/malume-parent-rn` with Node.js 24 + Temurin JDK 17 and uploads `malume-parent-release-apk`.
+
+### Required GitHub Actions Repository Secrets
+
+* **Driver Android:** `DRIVER_GOOGLE_SERVICES_JSON_BASE64`, `DRIVER_KEYSTORE_BASE64`, `DRIVER_KEY_ALIAS`, `DRIVER_KEYSTORE_PASSWORD`, `DRIVER_KEY_PASSWORD`
+* **Parent RN Android:** `PARENT_KEYSTORE_BASE64`, `PARENT_KEY_ALIAS`, `PARENT_KEYSTORE_PASSWORD`, `PARENT_KEY_PASSWORD` *(plus optional `PARENT_GOOGLE_SERVICES_JSON_BASE64` once Firebase is wired in Gradle)*
