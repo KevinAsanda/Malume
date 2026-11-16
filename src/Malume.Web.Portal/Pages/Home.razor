@@ -1,7 +1,96 @@
 ﻿@page "/"
+@using System.Text.Json
+@inject HttpClient ApiClient
 
-<PageTitle>Home</PageTitle>
+<PageTitle>Malume Portal</PageTitle>
 
-<h1>Hello, world!</h1>
+<h1>Malume B2B2C Portal</h1>
+<p class="text-muted">System Admin, Fleet Owner, and School Governing Body console.</p>
 
-Welcome to your new app.
+<div class="card mt-4" style="max-width: 38rem;">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="card-title mb-0">Backend Connectivity</h5>
+            <button class="btn btn-sm btn-outline-primary" @onclick="RefreshHealthAsync" disabled="@_isLoading">
+                @(_isLoading ? "Checking..." : "Refresh")
+            </button>
+        </div>
+
+        <p class="small text-muted mb-2">
+            API Base URL: <code>@ApiClient.BaseAddress</code>
+        </p>
+
+        @if (!string.IsNullOrWhiteSpace(_errorMessage))
+        {
+            <div class="alert alert-warning mb-0" role="alert">
+                <strong>API unreachable:</strong> @_errorMessage
+            </div>
+        }
+        else
+        {
+            <ul class="list-group list-group-flush">
+                <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                    <span>Malume.Api (<code>/api/v1/health</code>)</span>
+                    <span class="badge @(IsHealthy(_apiHealth) ? "bg-success" : "bg-secondary")">
+                        @(_apiHealth?.Status ?? "Unknown")
+                    </span>
+                </li>
+                <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                    <span>SQL Server (<code>/api/v1/health/database</code>)</span>
+                    <span class="badge @(IsHealthy(_dbHealth) ? "bg-success" : "bg-secondary")">
+                        @(_dbHealth?.Status ?? "Unknown")
+                    </span>
+                </li>
+            </ul>
+        }
+    </div>
+</div>
+
+@code {
+    private HealthStatusResponse? _apiHealth;
+    private HealthStatusResponse? _dbHealth;
+    private string? _errorMessage;
+    private bool _isLoading;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await RefreshHealthAsync();
+    }
+
+    private async Task RefreshHealthAsync()
+    {
+        _isLoading = true;
+        _errorMessage = null;
+
+        try
+        {
+            _apiHealth = await ApiClient.GetFromJsonAsync<HealthStatusResponse>("api/v1/health");
+            _dbHealth = await ApiClient.GetFromJsonAsync<HealthStatusResponse>("api/v1/health/database");
+        }
+        catch (HttpRequestException ex)
+        {
+            _apiHealth = null;
+            _dbHealth = null;
+            _errorMessage = $"Start Malume.Api alongside Malume.Web.Portal ({ex.Message}).";
+        }
+        catch (NotSupportedException ex)
+        {
+            _apiHealth = null;
+            _dbHealth = null;
+            _errorMessage = ex.Message;
+        }
+        catch (JsonException ex)
+        {
+            _apiHealth = null;
+            _dbHealth = null;
+            _errorMessage = ex.Message;
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private static bool IsHealthy(HealthStatusResponse? response) =>
+        string.Equals(response?.Status, "Healthy", StringComparison.OrdinalIgnoreCase);
+}
