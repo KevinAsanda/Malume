@@ -1,5 +1,8 @@
+using Malume.Application.Abstractions.Identity;
 using Malume.Application.Abstractions.Persistence;
+using Malume.Infrastructure.Identity;
 using Malume.Infrastructure.Persistence;
+using Malume.Infrastructure.Persistence.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -13,6 +16,8 @@ public static class DependencyInjection
         IConfiguration configuration)
     {
         ArgumentNullException.ThrowIfNull(configuration);
+
+        services.Configure<JwtOptions>(configuration.GetSection(JwtOptions.SectionName));
 
         services.AddDbContext<MalumeDbContext>((serviceProvider, options) =>
         {
@@ -30,6 +35,9 @@ public static class DependencyInjection
         });
 
         services.AddScoped<IMalumeDbContext>(sp => sp.GetRequiredService<MalumeDbContext>());
+        services.AddScoped<IUserRepository, UserRepository>();
+        services.AddSingleton<IPasswordHasher, Pbkdf2PasswordHasher>();
+        services.AddSingleton<IJwtTokenGenerator, JwtTokenGenerator>();
 
         return services;
     }

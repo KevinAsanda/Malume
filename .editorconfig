@@ -82,8 +82,9 @@ dotnet_naming_style.underscore_camel_case.required_prefix = _
 dotnet_naming_style.underscore_camel_case.capitalization = camel_case
 
 # Treat EF Core generated migrations as generated code
-[**/*Migrations/**/*.cs]
+[**/Migrations/*.cs]
 generated_code = true
+dotnet_diagnostic.CA1861.severity = none
 
 # Malume.Shared.Contracts intentionally uses "Shared" per the system blueprint
 [src/Malume.Shared.Contracts/**/*.cs]
