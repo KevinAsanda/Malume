@@ -12,17 +12,22 @@ public static class DependencyInjection
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        var connectionString = configuration.GetConnectionString("DefaultConnection")
-            ?? throw new InvalidOperationException("Connection string 'DefaultConnection' is not configured.");
+        ArgumentNullException.ThrowIfNull(configuration);
 
-        services.AddDbContext<MalumeDbContext>(options =>
+        services.AddDbContext<MalumeDbContext>((serviceProvider, options) =>
+        {
+            IConfiguration resolvedConfiguration = serviceProvider.GetService<IConfiguration>() ?? configuration;
+            string connectionString = resolvedConfiguration.GetConnectionString("DefaultConnection")
+                ?? throw new InvalidOperationException("Connection string 'DefaultConnection' is not configured.");
+
             options.UseSqlServer(
                 connectionString,
                 sql =>
                 {
                     sql.UseNetTopologySuite();
                     sql.MigrationsAssembly(typeof(MalumeDbContext).Assembly.FullName);
-                }));
+                });
+        });
 
         services.AddScoped<IMalumeDbContext>(sp => sp.GetRequiredService<MalumeDbContext>());
 
