@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 420" role="img" aria-labelledby="t2 d2">
+  <title id="t2">Malume Spatial Corridor &amp; Staged Escrow Flow</title>
+  <desc id="d2">Flow from 1.5 km spatial corridor matching through offline QR/PIN child handover to 40/30/30 staged milestone escrow release.</desc>
+  <defs>
+    <linearGradient id="bg2" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#0d1714"/><stop offset="100%" stop-color="#13201b"/></linearGradient>
+    <marker id="a2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 1l8 4-8 4z" fill="#fbbf24"/>
+    </marker>
+  </defs>
+  <rect width="1120" height="420" rx="18" fill="url(#bg2)"/>
+  <text x="44" y="48" fill="#f8fafc" font-family="Segoe UI,Arial,sans-serif" font-size="22" font-weight="700">Core Domain Mechanics: Corridor Routing, Offline Handover &amp; 40/30/30 Escrow</text>
+  <text x="44" y="72" fill="#94a3b8" font-family="Segoe UI,Arial,sans-serif" font-size="13.5">Designed for South African scholar transport reliability in low-connectivity school zones</text>
+
+  <!-- Step 1 -->
+  <rect x="44" y="106" width="235" height="260" rx="14" fill="#172923" stroke="#2dd4bf" stroke-opacity="0.5"/>
+  <text x="64" y="140" fill="#2dd4bf" font-family="Segoe UI,Arial,sans-serif" font-size="12" font-weight="700">01 · SPATIAL CORRIDOR</text>
+  <text x="64" y="168" fill="#f8fafc" font-family="Segoe UI,Arial,sans-serif" font-size="17" font-weight="700">1.5 km Route Match</text>
+  <text x="64" y="202" fill="#cbd5e1" font-family="Segoe UI,Arial,sans-serif" font-size="12.5">• Monthly scholar seats</text>
+  <text x="64" y="226" fill="#cbd5e1" font-family="Segoe UI,Arial,sans-serif" font-size="12.5">• Peak ad-hoc rides capped</text>
+  <text x="64" y="246" fill="#cbd5e1" font-family="Segoe UI,Arial,sans-serif" font-size="12.5">  within 1.5 km school path</text>
+  <text x="64" y="274" fill="#cbd5e1" font-family="Segoe UI,Arial,sans-serif" font-size="12.5">• SQL Server geography</text>
+  <text x="64" y="294" fill="#cbd5e1" font-family="Segoe UI,Arial,sans-serif" font-size="12.5">  STDistance (SRID 4326)</text>
+  <rect x="64" y="320" width="195" height="28" rx="6" fill="#0f291e" stroke="#2dd4bf" stroke-opacity="0.4"/>
+  <text x="161" y="339" fill="#5eead4" font-family="Segoe UI,Arial,sans-serif" font-size="11.5" font-weight="700" text-anchor="middle">Off-Peak Hybrid E-Hailing</text>
+
+  <!-- Step 2 -->
+  <rect x="311" y="106" width="235" height="260" rx="14" fill="#172923" stroke="#fbbf24" stroke-opacity="0.5"/>
+  <text x="331" y="140" fill="#fbbf24" font-family="Segoe UI,Arial,sans-serif" font-size="12" font-weight="700">02 · OFFLINE HANDOVER</text>
+  <text x="331" y="168" fill="#f8fafc" font-family="Segoe UI,Arial,sans-serif" font-size="17" font-weight="700">QR &amp; Daily PIN Gate</text>
+  <text x="331" y="202" fill="#cbd5e1" font-family="Segoe UI,Arial,sans-serif" font-size="12.5">• CameraX + ML Kit QR scan</text>
+  <text x="331" y="226" fill="#cbd5e1" font-family="Segoe UI,Arial,sans-serif" font-size="12.5">• Daily rotating 4-digit PIN</text>
+  <text x="331" y="250" fill="#cbd5e1" font-family="Segoe UI,Arial,sans-serif" font-size="12.5">• Stored in SQLCipher Room</text>
+  <text x="331" y="274" fill="#cbd5e1" font-family="Segoe UI,Arial,sans-serif" font-size="12.5">• Syncs via WorkManager</text>
+  <rect x="331" y="320" width="195" height="28" rx="6" fill="#2b210b" stroke="#fbbf24" stroke-opacity="0.4"/>
+  <text x="428" y="339" fill="#fde68a" font-family="Segoe UI,Arial,sans-serif" font-size="11.5" font-weight="700" text-anchor="middle">Zero-Signal School Gate Safe</text>
+
+  <!-- Step 3 -->
+  <rect x="578" y="106" width="235" height="260" rx="14" fill="#172923" stroke="#34d399" stroke-opacity="0.5"/>
+  <text x="598" y="140" fill="#34d399" font-family="Segoe UI,Arial,sans-serif" font-size="12" font-weight="700">03 · STAGED ESCROW</text>
+  <text x="598" y="168" fill="#f8fafc" font-family="Segoe UI,Arial,sans-serif" font-size="17" font-weight="700">40% / 30% / 30% Ledger</text>
+  <text x="598" y="204" fill="#a7f3d0" font-family="Segoe UI,Arial,sans-serif" font-size="13" font-weight="700">40% · Pickup Confirmed</text>
+  <text x="598" y="232" fill="#a7f3d0" font-family="Segoe UI,Arial,sans-serif" font-size="13" font-weight="700">30% · Mid-Month Active</text>
+  <text x="598" y="260" fill="#a7f3d0" font-family="Segoe UI,Arial,sans-serif" font-size="13" font-weight="700">30% · Cycle Completed</text>
+  <text x="598" y="290" fill="#cbd5e1" font-family="Segoe UI,Arial,sans-serif" font-size="12">Protects parents &amp; drivers</text>
+  <rect x="598" y="320" width="195" height="28" rx="6" fill="#0f291e" stroke="#34d399" stroke-opacity="0.4"/>
+  <text x="695" y="339" fill="#6ee7b7" font-family="Segoe UI,Arial,sans-serif" font-size="11.5" font-weight="700" text-anchor="middle">Immutable Ledger Entries</text>
+
+  <!-- Step 4 -->
+  <rect x="845" y="106" width="231" height="260" rx="14" fill="#172923" stroke="#60a5fa" stroke-opacity="0.5"/>
+  <text x="865" y="140" fill="#60a5fa" font-family="Segoe UI,Arial,sans-serif" font-size="12" font-weight="700">04 · LIVE TELEMETRY</text>
+  <text x="865" y="168" fill="#f8fafc" font-family="Segoe UI,Arial,sans-serif" font-size="17" font-weight="700">SignalR + School SGB</text>
+  <text x="865" y="202" fill="#cbd5e1" font-family="Segoe UI,Arial,sans-serif" font-size="12.5">• Parent boarding alerts</text>
+  <text x="865" y="226" fill="#cbd5e1" font-family="Segoe UI,Arial,sans-serif" font-size="12.5">• Fleet compliance tracking</text>
+  <text x="865" y="250" fill="#cbd5e1" font-family="Segoe UI,Arial,sans-serif" font-size="12.5">• School SGB arrival audit</text>
+  <text x="865" y="274" fill="#cbd5e1" font-family="Segoe UI,Arial,sans-serif" font-size="12.5">• Hangfire settlement jobs</text>
+  <rect x="865" y="320" width="191" height="28" rx="6" fill="#11223a" stroke="#60a5fa" stroke-opacity="0.4"/>
+  <text x="960" y="339" fill="#93c5fd" font-family="Segoe UI,Arial,sans-serif" font-size="11.5" font-weight="700" text-anchor="middle">B2B2C Audit Trail</text>
+
+  <path d="M279 236h26" stroke="#fbbf24" stroke-width="2.5" marker-end="url(#a2)"/>
+  <path d="M546 236h26" stroke="#fbbf24" stroke-width="2.5" marker-end="url(#a2)"/>
+  <path d="M813 236h26" stroke="#fbbf24" stroke-width="2.5" marker-end="url(#a2)"/>
+</svg>

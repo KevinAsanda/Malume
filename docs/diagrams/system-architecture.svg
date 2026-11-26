@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 620" role="img" aria-labelledby="t d">
+  <title id="t">Malume Platform System Architecture</title>
+  <desc id="d">Multi-client scholar transport architecture linking Blazor WASM, Kotlin Android, and React Native apps to a .NET 8 Clean Architecture API and SQL Server 2022 spatial database.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#0b1512"/><stop offset="100%" stop-color="#111d18"/></linearGradient>
+    <marker id="arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 1l8 4-8 4z" fill="#34d399"/>
+    </marker>
+  </defs>
+  <rect width="1120" height="620" rx="18" fill="url(#bg)"/>
+  <text x="44" y="52" fill="#f8fafc" font-family="Segoe UI,Arial,sans-serif" font-size="24" font-weight="700">Malume Platform — Multi-Client Clean Architecture</text>
+  <text x="44" y="78" fill="#94a3b8" font-family="Segoe UI,Arial,sans-serif" font-size="14">Blazor WebAssembly B2B2C Portal · Kotlin Offline Driver App · React Native Parent App · .NET 8 + SQL Server 2022 Spatial</text>
+
+  <!-- Clients Column -->
+  <rect x="44" y="112" width="290" height="128" rx="12" fill="#162822" stroke="#2dd4bf" stroke-opacity="0.45"/>
+  <text x="64" y="144" fill="#2dd4bf" font-family="Segoe UI,Arial,sans-serif" font-size="12" font-weight="700">B2B2C WEB PORTAL</text>
+  <text x="64" y="170" fill="#f8fafc" font-family="Segoe UI,Arial,sans-serif" font-size="18" font-weight="700">Malume.Web.Portal</text>
+  <text x="64" y="196" fill="#cbd5e1" font-family="Segoe UI,Arial,sans-serif" font-size="13">Blazor WebAssembly (.NET 8.0)</text>
+  <text x="64" y="218" fill="#94a3b8" font-family="Segoe UI,Arial,sans-serif" font-size="12">Fleet Owners · School SGBs · Ops Admin</text>
+
+  <rect x="44" y="262" width="290" height="140" rx="12" fill="#162822" stroke="#f59e0b" stroke-opacity="0.45"/>
+  <text x="64" y="294" fill="#fbbf24" font-family="Segoe UI,Arial,sans-serif" font-size="12" font-weight="700">DRIVER COMPANION APP</text>
+  <text x="64" y="320" fill="#f8fafc" font-family="Segoe UI,Arial,sans-serif" font-size="18" font-weight="700">malume-driver-android</text>
+  <text x="64" y="346" fill="#cbd5e1" font-family="Segoe UI,Arial,sans-serif" font-size="13">Kotlin · Jetpack Compose · CameraX + ML Kit</text>
+  <text x="64" y="368" fill="#94a3b8" font-family="Segoe UI,Arial,sans-serif" font-size="12">Room + SQLCipher encrypted offline cache</text>
+  <text x="64" y="388" fill="#94a3b8" font-family="Segoe UI,Arial,sans-serif" font-size="12">WorkManager sync · QR / Daily PIN handover</text>
+
+  <rect x="44" y="424" width="290" height="132" rx="12" fill="#162822" stroke="#60a5fa" stroke-opacity="0.45"/>
+  <text x="64" y="456" fill="#60a5fa" font-family="Segoe UI,Arial,sans-serif" font-size="12" font-weight="700">PARENT MOBILE APP</text>
+  <text x="64" y="482" fill="#f8fafc" font-family="Segoe UI,Arial,sans-serif" font-size="18" font-weight="700">malume-parent-rn</text>
+  <text x="64" y="508" fill="#cbd5e1" font-family="Segoe UI,Arial,sans-serif" font-size="13">React Native 0.88 (TypeScript)</text>
+  <text x="64" y="530" fill="#94a3b8" font-family="Segoe UI,Arial,sans-serif" font-size="12">Subscriptions · Live SignalR · Milestone escrow</text>
+
+  <!-- API / Clean Architecture Center -->
+  <rect x="400" y="112" width="350" height="444" rx="14" fill="#13221c" stroke="#34d399" stroke-opacity="0.5" stroke-width="1.5"/>
+  <text x="424" y="146" fill="#34d399" font-family="Segoe UI,Arial,sans-serif" font-size="12" font-weight="700">BACKEND CORE (.NET 8 CLEAN ARCHITECTURE)</text>
+  <text x="424" y="174" fill="#f8fafc" font-family="Segoe UI,Arial,sans-serif" font-size="20" font-weight="700">Malume.Api + SignalR Hub</text>
+
+  <rect x="424" y="198" width="302" height="72" rx="10" fill="#1b3028" stroke="#475569"/>
+  <text x="440" y="224" fill="#f8fafc" font-family="Segoe UI,Arial,sans-serif" font-size="14" font-weight="700">Malume.Api</text>
+  <text x="440" y="246" fill="#cbd5e1" font-family="Segoe UI,Arial,sans-serif" font-size="12">REST Controllers · SignalR Real-time · Hangfire Jobs</text>
+
+  <rect x="424" y="284" width="302" height="72" rx="10" fill="#1b3028" stroke="#475569"/>
+  <text x="440" y="310" fill="#f8fafc" font-family="Segoe UI,Arial,sans-serif" font-size="14" font-weight="700">Malume.Application</text>
+  <text x="440" y="332" fill="#cbd5e1" font-family="Segoe UI,Arial,sans-serif" font-size="12">MediatR CQRS · FluentValidation · Corridor Matching</text>
+
+  <rect x="424" y="370" width="302" height="72" rx="10" fill="#1b3028" stroke="#475569"/>
+  <text x="440" y="396" fill="#f8fafc" font-family="Segoe UI,Arial,sans-serif" font-size="14" font-weight="700">Malume.Domain &amp; Shared.Contracts</text>
+  <text x="440" y="418" fill="#cbd5e1" font-family="Segoe UI,Arial,sans-serif" font-size="12">Escrow Ledger (40/30/30) · Handover &amp; Seat Entities</text>
+
+  <rect x="424" y="456" width="302" height="76" rx="10" fill="#1b3028" stroke="#475569"/>
+  <text x="440" y="482" fill="#f8fafc" font-family="Segoe UI,Arial,sans-serif" font-size="14" font-weight="700">Malume.Infrastructure</text>
+  <text x="440" y="504" fill="#cbd5e1" font-family="Segoe UI,Arial,sans-serif" font-size="12">EF Core 8 · NetTopologySuite (SRID 4326) · Auth</text>
+
+  <!-- Data & CI Column -->
+  <rect x="816" y="112" width="260" height="205" rx="12" fill="#162822" stroke="#a78bfa" stroke-opacity="0.5"/>
+  <text x="838" y="144" fill="#c4b5fd" font-family="Segoe UI,Arial,sans-serif" font-size="12" font-weight="700">SPATIAL PERSISTENCE</text>
+  <text x="838" y="172" fill="#f8fafc" font-family="Segoe UI,Arial,sans-serif" font-size="18" font-weight="700">SQL Server 2022</text>
+  <text x="838" y="200" fill="#cbd5e1" font-family="Segoe UI,Arial,sans-serif" font-size="12.5">• geography (SRID 4326) corridors</text>
+  <text x="838" y="224" fill="#cbd5e1" font-family="Segoe UI,Arial,sans-serif" font-size="12.5">• 1.5 km route-buffer intersection</text>
+  <text x="838" y="248" fill="#cbd5e1" font-family="Segoe UI,Arial,sans-serif" font-size="12.5">• Double-entry escrow ledger</text>
+  <text x="838" y="272" fill="#cbd5e1" font-family="Segoe UI,Arial,sans-serif" font-size="12.5">• Dockerized init &amp; migrations</text>
+
+  <rect x="816" y="344" width="260" height="212" rx="12" fill="#162822" stroke="#38bdf8" stroke-opacity="0.45"/>
+  <text x="838" y="376" fill="#7dd3fc" font-family="Segoe UI,Arial,sans-serif" font-size="12" font-weight="700">QUALITY &amp; CI/CD PIPELINE</text>
+  <text x="838" y="404" fill="#f8fafc" font-family="Segoe UI,Arial,sans-serif" font-size="17" font-weight="700">5-Job GitHub Actions</text>
+  <text x="838" y="432" fill="#cbd5e1" font-family="Segoe UI,Arial,sans-serif" font-size="12.5">1. xUnit + Testcontainers.MsSql</text>
+  <text x="838" y="456" fill="#cbd5e1" font-family="Segoe UI,Arial,sans-serif" font-size="12.5">2. GHCR Container Image Build</text>
+  <text x="838" y="480" fill="#cbd5e1" font-family="Segoe UI,Arial,sans-serif" font-size="12.5">3. Blazor WASM Artifact Build</text>
+  <text x="838" y="504" fill="#cbd5e1" font-family="Segoe UI,Arial,sans-serif" font-size="12.5">4. Signed Android APK Pipeline</text>
+  <text x="838" y="528" fill="#cbd5e1" font-family="Segoe UI,Arial,sans-serif" font-size="12.5">5. Shared Contracts Validation</text>
+
+  <!-- Arrows -->
+  <path d="M334 176h58" stroke="#34d399" stroke-width="2.5" marker-end="url(#arr)"/>
+  <path d="M334 332h58" stroke="#34d399" stroke-width="2.5" marker-end="url(#arr)"/>
+  <path d="M334 490h58" stroke="#34d399" stroke-width="2.5" marker-end="url(#arr)"/>
+  <path d="M750 230h58" stroke="#34d399" stroke-width="2.5" marker-end="url(#arr)"/>
+  <path d="M750 450h58" stroke="#38bdf8" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#arr)"/>
+</svg>
