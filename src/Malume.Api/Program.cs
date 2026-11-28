@@ -1,8 +1,12 @@
+using Hangfire;
+using Hangfire.SqlServer;
 using Malume.Api.Middleware;
 using Malume.Api.Security;
 using Malume.Api.Services;
+using Malume.Api.Startup;
 using Malume.Application;
 using Malume.Application.Abstractions.Identity;
+using Malume.Application.Abstractions.Jobs;
 using Malume.Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.OpenApi.Models;
@@ -14,6 +18,28 @@ builder.Services.AddInfrastructure(builder.Configuration);
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
+
+builder.Services.AddHostedService<DatabaseInitializerHostedService>();
+
+bool hangfireEnabled = builder.Configuration.GetValue<bool?>("Hangfire:Enabled") ?? true;
+if (hangfireEnabled)
+{
+    builder.Services.AddHangfire((sp, cfg) => cfg
+        .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+        .UseSimpleAssemblyNameTypeSerializer()
+        .UseRecommendedSerializerSettings()
+        .UseSqlServerStorage(
+            sp.GetRequiredService<IConfiguration>().GetConnectionString("DefaultConnection"),
+            new SqlServerStorageOptions
+            {
+                SchemaName = "hangfire",
+                PrepareSchemaIfNecessary = true,
+                QueuePollInterval = TimeSpan.Zero,
+                UseRecommendedIsolationLevel = true,
+                DisableGlobalLocks = true
+            }));
+    builder.Services.AddHangfireServer();
+}
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer();
@@ -78,6 +104,20 @@ app.UseHttpsRedirection();
 app.UseCors("BlazorPortal");
 app.UseAuthentication();
 app.UseAuthorization();
+
+if (hangfireEnabled)
+{
+    if (app.Environment.IsDevelopment())
+    {
+        app.UseHangfireDashboard("/hangfire");
+    }
+
+    app.Services.GetRequiredService<IRecurringJobManager>().AddOrUpdate<IComplianceExpiryScanner>(
+        "compliance-expiry-scanner",
+        s => s.ScanAsync(CancellationToken.None),
+        "0 22 * * *");
+}
+
 app.MapControllers();
 
 app.Run();

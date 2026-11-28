@@ -25,6 +25,10 @@ public sealed class MalumeApiFactory : WebApplicationFactory<Program>, IAsyncLif
         builder.UseSetting("Jwt:SigningKey", TestJwtSigningKey);
         builder.UseSetting("Jwt:Issuer", "Malume.Api");
         builder.UseSetting("Jwt:Audience", "Malume.Clients");
+        builder.UseSetting("Hangfire:Enabled", "false");
+        builder.UseSetting("Database:ApplyMigrationsOnStartup", "true");
+        builder.UseSetting("Bootstrap:SysAdminEmail", "sysadmin@malume.test");
+        builder.UseSetting("Bootstrap:SysAdminPassword", "MalumeAdmin!2026");
 
         builder.ConfigureAppConfiguration((_, config) =>
         {
@@ -33,7 +37,11 @@ public sealed class MalumeApiFactory : WebApplicationFactory<Program>, IAsyncLif
                 ["ConnectionStrings:DefaultConnection"] = ConnectionString,
                 ["Jwt:SigningKey"] = TestJwtSigningKey,
                 ["Jwt:Issuer"] = "Malume.Api",
-                ["Jwt:Audience"] = "Malume.Clients"
+                ["Jwt:Audience"] = "Malume.Clients",
+                ["Hangfire:Enabled"] = "false",
+                ["Database:ApplyMigrationsOnStartup"] = "true",
+                ["Bootstrap:SysAdminEmail"] = "sysadmin@malume.test",
+                ["Bootstrap:SysAdminPassword"] = "MalumeAdmin!2026"
             });
         });
     }

@@ -35,4 +35,13 @@ public sealed class SchoolEndorsement : AuditableEntity
         IsActive = false;
         MarkUpdated();
     }
+
+    public void Reactivate(Guid endorsedByUserId, string? notes)
+    {
+        IsActive = true;
+        EndorsedByUserId = endorsedByUserId;
+        Notes = notes?.Trim();
+        EndorsedAtUtc = DateTimeOffset.UtcNow;
+        MarkUpdated();
+    }
 }

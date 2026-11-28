@@ -46,6 +46,7 @@ internal sealed partial class ApiExceptionHandler(ILogger<ApiExceptionHandler> l
             DomainException => (StatusCodes.Status400BadRequest, "Domain rule violation"),
             ConflictException => (StatusCodes.Status409Conflict, "Resource conflict"),
             UnauthorizedException => (StatusCodes.Status401Unauthorized, "Unauthorized"),
+            ForbiddenException => (StatusCodes.Status403Forbidden, "Forbidden"),
             NotFoundException => (StatusCodes.Status404NotFound, "Resource not found"),
             _ => (StatusCodes.Status500InternalServerError, "Server error")
         };

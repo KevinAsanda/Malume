@@ -24,17 +24,57 @@ Content-Type: application/json
 
 ###
 
-# @name loginParent
+# @name loginAdmin
 POST {{Malume_Api_HostAddress}}/api/v1/auth/login
 Content-Type: application/json
 
 {
-  "email": "parent.demo@malume.co.za",
-  "password": "MalumePass!2026"
+  "email": "admin@malume.local",
+  "password": "MalumeAdmin!2026"
 }
 
 ###
 
 GET {{Malume_Api_HostAddress}}/api/v1/auth/me
-Authorization: Bearer {{loginParent.response.body.accessToken}}
+Authorization: Bearer {{loginAdmin.response.body.accessToken}}
+Accept: application/json
+
+###
+
+GET {{Malume_Api_HostAddress}}/api/v1/compliance/review-queue
+Authorization: Bearer {{loginAdmin.response.body.accessToken}}
+Accept: application/json
+
+###
+
+POST {{Malume_Api_HostAddress}}/api/v1/admin/jobs/compliance-scan
+Authorization: Bearer {{loginAdmin.response.body.accessToken}}
+Accept: application/json
+
+###
+
+# @name loginFleet
+POST {{Malume_Api_HostAddress}}/api/v1/auth/login
+Content-Type: application/json
+
+{
+  "email": "fleet.demo@malume.co.za",
+  "password": "MalumePass!2026"
+}
+
+###
+
+POST {{Malume_Api_HostAddress}}/api/v1/fleets
+Authorization: Bearer {{loginFleet.response.body.accessToken}}
+Content-Type: application/json
+
+{
+  "name": "Gauteng Scholar Shuttle",
+  "companyRegistrationNumber": "2026/001234/07"
+}
+
+###
+
+GET {{Malume_Api_HostAddress}}/api/v1/vehicles
+Authorization: Bearer {{loginFleet.response.body.accessToken}}
 Accept: application/json
