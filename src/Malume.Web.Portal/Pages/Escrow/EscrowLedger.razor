@@ -1,0 +1,334 @@
+@page "/escrow"
+@using System.ComponentModel.DataAnnotations
+@using Malume.Shared.Contracts.Auth
+@using Malume.Shared.Contracts.Escrow
+@using Malume.Shared.Contracts.Tenants
+@attribute [Authorize(Roles = MalumeRoles.FleetOwner + "," + MalumeRoles.SysAdmin)]
+@inject MalumeApiClient ApiClient
+@inject AuthenticationStateProvider AuthStateProvider
+
+<PageTitle>Escrow &amp; Wallet Ledger — Malume</PageTitle>
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <div>
+        <h1 class="mb-0">Staged Escrow &amp; Double-Entry Wallet Ledger</h1>
+        <p class="text-muted small mb-0">40% (1st) / 30% (15th &ge; 85% trips) / 30% (Month-End) Paystack SA settlement ledger.</p>
+    </div>
+    <div class="d-flex gap-2">
+        @if (_isSysAdmin)
+        {
+            <button class="btn btn-warning btn-sm" @onclick="RunEscrowPayoutsAsync" disabled="@_isBusy">
+                Run Staged Payouts Now
+            </button>
+        }
+        <button class="btn btn-outline-primary btn-sm" @onclick="LoadAsync" disabled="@_isLoading">Refresh</button>
+    </div>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(_errorMessage))
+{
+    <div class="alert alert-danger" role="alert">@_errorMessage</div>
+}
+
+@if (!string.IsNullOrWhiteSpace(_statusMessage))
+{
+    <div class="alert alert-success" role="alert">@_statusMessage</div>
+}
+
+@if (_isLoading)
+{
+    <p class="text-muted">Loading escrow milestones and wallet ledger...</p>
+}
+else
+{
+    @if (_ledger is not null)
+    {
+        <div class="row g-3 mb-4">
+            <div class="col-md-4">
+                <div class="card border-success">
+                    <div class="card-body">
+                        <div class="text-muted small">Total Credits</div>
+                        <div class="fs-4 fw-bold text-success">R @_ledger.TotalCreditsZar.ToString("N2")</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card border-secondary">
+                    <div class="card-body">
+                        <div class="text-muted small">Total Debits</div>
+                        <div class="fs-4 fw-bold">R @_ledger.TotalDebitsZar.ToString("N2")</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card border-primary">
+                    <div class="card-body">
+                        <div class="text-muted small">Net Wallet Balance</div>
+                        <div class="fs-4 fw-bold text-primary">R @_ledger.NetBalanceZar.ToString("N2")</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+    @if (_isFleetOwner)
+    {
+        <div class="card mb-4">
+            <div class="card-body">
+                <h5 class="card-title">Fleet Paystack Subaccount Setup</h5>
+                @if (!string.IsNullOrWhiteSpace(_fleet?.PaystackSubaccountCode))
+                {
+                    <div class="alert alert-info py-2">
+                        Active Paystack Subaccount: <strong>@_fleet.PaystackSubaccountCode</strong>
+                    </div>
+                }
+                <EditForm Model="_subaccountModel" OnValidSubmit="ConfigureSubaccountAsync">
+                    <DataAnnotationsValidator />
+                    <ValidationSummary class="text-danger small" />
+                    <div class="row g-2 align-items-end">
+                        <div class="col-md-3">
+                            <label class="form-label small" for="bizName">Business Name</label>
+                            <InputText id="bizName" class="form-control form-control-sm" @bind-Value="_subaccountModel.BusinessName" />
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small" for="bankCode">SA Bank Code (e.g. 632005)</label>
+                            <InputText id="bankCode" class="form-control form-control-sm" @bind-Value="_subaccountModel.SettlementBankCode" />
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small" for="acctNum">Account Number</label>
+                            <InputText id="acctNum" class="form-control form-control-sm" @bind-Value="_subaccountModel.AccountNumber" />
+                        </div>
+                        <div class="col-md-3">
+                            <button type="submit" class="btn btn-primary btn-sm w-100" disabled="@_isBusy">Save Subaccount</button>
+                        </div>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    }
+
+    <h4>Subscriptions &amp; Staged Milestones (@_subscriptions.Count)</h4>
+    @if (_subscriptions.Count == 0)
+    {
+        <div class="alert alert-light border mb-4">No staged escrow subscriptions found.</div>
+    }
+    else
+    {
+        @foreach (SubscriptionEscrowDto sub in _subscriptions)
+        {
+            <div class="card mb-3">
+                <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+                    <div>
+                        <strong>@sub.RouteName</strong> • @sub.LearnerFullName (@sub.BillingYearMonth) —
+                        <strong>R @sub.TotalAmountZar.ToString("N2")</strong>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="badge @(sub.EscrowStatus == "Active" ? "bg-success" : "bg-warning text-dark")">@sub.EscrowStatus</span>
+                        @if (_isSysAdmin && sub.EscrowStatus == "PausedComplianceOrServiceFailure")
+                        {
+                            <button class="btn btn-danger btn-sm" @onclick="() => IssueProRataRefundAsync(sub.SubscriptionId)" disabled="@_isBusy">
+                                1-Click Pro-Rata Refund
+                            </button>
+                        }
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm mb-0">
+                        <thead>
+                            <tr>
+                                <th>Tranche</th>
+                                <th>Share</th>
+                                <th>Amount (ZAR)</th>
+                                <th>Scheduled</th>
+                                <th>Status</th>
+                                <th>Paystack Transfer</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (EscrowMilestoneDto m in sub.Milestones)
+                            {
+                                <tr>
+                                    <td>Tranche @m.TrancheNumber</td>
+                                    <td>@m.Percentage.ToString("0")%</td>
+                                    <td>R @m.AmountZar.ToString("N2")</td>
+                                    <td>@m.ScheduledReleaseDate.ToString("yyyy-MM-dd")</td>
+                                    <td><span class="badge bg-secondary">@m.Status</span></td>
+                                    <td><code>@(m.PaystackTransferCode ?? "-")</code></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        }
+    }
+
+    <h4 class="mt-4">Double-Entry Wallet Ledger (@(_ledger?.Entries.Count ?? 0))</h4>
+    @if (_ledger is not null && _ledger.Entries.Count > 0)
+    {
+        <div class="table-responsive">
+            <table class="table table-sm table-striped">
+                <thead>
+                    <tr>
+                        <th>Timestamp (UTC)</th>
+                        <th>Type</th>
+                        <th>Amount (ZAR)</th>
+                        <th>Reference</th>
+                        <th>Paystack Ref</th>
+                        <th>Notes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (WalletLedgerEntryDto entry in _ledger.Entries)
+                    {
+                        <tr>
+                            <td>@entry.CreatedAtUtc.ToString("yyyy-MM-dd HH:mm")</td>
+                            <td>
+                                <span class="badge @(entry.EntryType == "Credit" ? "bg-success" : "bg-dark")">@entry.EntryType</span>
+                            </td>
+                            <td>R @entry.AmountZar.ToString("N2")</td>
+                            <td>@entry.ReferenceType</td>
+                            <td><code>@(entry.PaystackReference ?? "-")</code></td>
+                            <td class="small text-muted">@entry.Notes</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+}
+
+@code {
+    private readonly SubaccountFormModel _subaccountModel = new();
+    private readonly List<SubscriptionEscrowDto> _subscriptions = [];
+    private WalletLedgerSummaryDto? _ledger;
+    private FleetDto? _fleet;
+    private bool _isSysAdmin;
+    private bool _isFleetOwner;
+    private bool _isLoading = true;
+    private bool _isBusy;
+    private string? _errorMessage;
+    private string? _statusMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        AuthenticationState state = await AuthStateProvider.GetAuthenticationStateAsync();
+        _isSysAdmin = state.User.IsInRole(MalumeRoles.SysAdmin);
+        _isFleetOwner = state.User.IsInRole(MalumeRoles.FleetOwner);
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _isLoading = true;
+        _errorMessage = null;
+
+        try
+        {
+            IReadOnlyList<SubscriptionEscrowDto> subs = await ApiClient.ListEscrowSubscriptionsAsync();
+            _subscriptions.Clear();
+            _subscriptions.AddRange(subs);
+
+            _ledger = await ApiClient.GetWalletLedgerAsync();
+            if (_isFleetOwner)
+            {
+                _fleet = await ApiClient.GetMyFleetOrNullAsync();
+                if (_fleet is not null && string.IsNullOrWhiteSpace(_subaccountModel.BusinessName))
+                {
+                    _subaccountModel.BusinessName = _fleet.Name;
+                }
+            }
+        }
+        catch (ApiClientException ex)
+        {
+            _errorMessage = ex.Message;
+        }
+        catch (HttpRequestException ex)
+        {
+            _errorMessage = ex.Message;
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task ConfigureSubaccountAsync()
+    {
+        _isBusy = true;
+        _errorMessage = null;
+        _statusMessage = null;
+        try
+        {
+            _fleet = await ApiClient.ConfigureFleetSubaccountAsync(new ConfigureFleetSubaccountRequest(
+                _subaccountModel.BusinessName,
+                _subaccountModel.SettlementBankCode,
+                _subaccountModel.AccountNumber));
+            _statusMessage = $"Configured Paystack subaccount {_fleet.PaystackSubaccountCode}.";
+        }
+        catch (ApiClientException ex)
+        {
+            _errorMessage = ex.Message;
+        }
+        finally
+        {
+            _isBusy = false;
+        }
+    }
+
+    private async Task RunEscrowPayoutsAsync()
+    {
+        _isBusy = true;
+        _errorMessage = null;
+        _statusMessage = null;
+        try
+        {
+            EscrowPayoutRunResultDto result = await ApiClient.RunEscrowPayoutsAsync();
+            _statusMessage = $"Evaluated {result.SubscriptionsChecked} subscription(s): released {result.MilestonesReleased} tranche(s) totaling R {result.TotalReleasedZar:N2}; paused {result.SubscriptionsPausedForCompliance}; skipped (<85%) {result.TranchesSkippedBelowRatio}.";
+            await LoadAsync();
+        }
+        catch (ApiClientException ex)
+        {
+            _errorMessage = ex.Message;
+        }
+        finally
+        {
+            _isBusy = false;
+        }
+    }
+
+    private async Task IssueProRataRefundAsync(Guid subscriptionId)
+    {
+        _isBusy = true;
+        _errorMessage = null;
+        _statusMessage = null;
+        try
+        {
+            ProRataRefundResponse res = await ApiClient.IssueProRataRefundAsync(
+                subscriptionId,
+                "Admin triggered pro-rata compliance refund");
+            _statusMessage = $"Refunded R {res.RefundedAmountZar:N2} across {res.RefundedMilestoneCount} tranche(s) (Ref: {res.RefundReference}).";
+            await LoadAsync();
+        }
+        catch (ApiClientException ex)
+        {
+            _errorMessage = ex.Message;
+        }
+        finally
+        {
+            _isBusy = false;
+        }
+    }
+
+    private sealed class SubaccountFormModel
+    {
+        [Required]
+        public string BusinessName { get; set; } = string.Empty;
+
+        [Required]
+        public string SettlementBankCode { get; set; } = "632005";
+
+        [Required]
+        public string AccountNumber { get; set; } = string.Empty;
+    }
+}
