@@ -70,3 +70,15 @@ dotnet ef database update --project src/Malume.Infrastructure --startup-project 
 * **Hangfire & Scheduled Compliance Scan:** `Malume.Api` registers Hangfire using the SQL Server `hangfire` schema and schedules `compliance-expiry-scanner` (`0 22 * * *` UTC / `00:00` SAST) to run `IComplianceExpiryScanner`. In `Development`, the Hangfire dashboard is mounted at `/hangfire`.
 * **Manual Compliance Scan Endpoint:** Authenticated `SysAdmin` callers can trigger an immediate scan via `POST /api/v1/admin/jobs/compliance-scan`.
 * **Blazor WASM Portal:** Sign in at `/login` with your JWT credentials to access `/admin/compliance` (`SysAdmin`), `/fleet` (`FleetOwner`), and `/school` (`SchoolAdmin`).
+
+---
+
+## 7. Phase 3 Local Setup (Driver Companion App, Offline Handover & SignalR)
+
+* **Android Emulator Networking:** Run the backend with `dotnet run --project src/Malume.Api --launch-profile http` (`http://localhost:5144`). The Kotlin Driver app in `mobile/malume-driver-android` defaults to `http://10.0.2.2:5144` (configured for cleartext loopback/emulator traffic in `network_security_config.xml`).
+* **Persistent ECDSA QR Signing Key (Optional for Local Dev):** By default, `EcdsaQrBadgeSigner` generates an in-memory P-256 keypair per API startup. To keep previously generated QR badges valid across API restarts locally, set `QrSigning:PrivateKeyBase64` (PKCS#8 Base64) via `dotnet user-secrets` in `src/Malume.Api`.
+* **SignalR Live Telemetry Hub:** Real-time GPS telemetry, school-gate approach events, and SOS alerts run on `/hubs/trips` (JWT Bearer token via header or `?access_token=` query string).
+* **Offline Handover & Airplane Mode Testing:**
+  * Refresh the Driver schedule while online so the manifest (`QrPublicKeyVerifier` and `DailyPinVerifierHash`) is cached in the SQLCipher-encrypted Room database.
+  * Toggle **Airplane Mode** on the emulator/device and verify learners using **Scan QR** (CameraX/ML Kit or manual `MLM1:...` payload entry) or **Daily PIN** (4-digit code from `GET /api/v1/learners/{id}/daily-pin`).
+  * Turn connectivity back on: `ConnectivitySyncMonitor` + `HandoverSyncWorker` (WorkManager) automatically flush queued `PENDING` records in chronological order to `POST /api/v1/trips/{tripId}/handovers/batch-sync`.
