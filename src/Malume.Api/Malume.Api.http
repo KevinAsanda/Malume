@@ -78,3 +78,26 @@ Content-Type: application/json
 GET {{Malume_Api_HostAddress}}/api/v1/vehicles
 Authorization: Bearer {{loginFleet.response.body.accessToken}}
 Accept: application/json
+
+###
+
+GET {{Malume_Api_HostAddress}}/api/v1/routes
+Authorization: Bearer {{loginAdmin.response.body.accessToken}}
+Accept: application/json
+
+###
+
+# @name loginDriver
+POST {{Malume_Api_HostAddress}}/api/v1/auth/login
+Content-Type: application/json
+
+{
+  "email": "driver.demo@malume.co.za",
+  "password": "MalumePass!2026"
+}
+
+###
+
+GET {{Malume_Api_HostAddress}}/api/v1/trips/driver/schedule
+Authorization: Bearer {{loginDriver.response.body.accessToken}}
+Accept: application/json

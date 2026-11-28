@@ -1,12 +1,20 @@
-# Add project specific R8 rules here.
-# AGP will combine all keep rule files in src/main/keepRules to pass to R8
-#
-# For more details, see
-#   https://d.android.com/r/tools/r8/keep-rules
+# kotlinx.serialization
+-keepattributes *Annotation*, InnerClasses
+-dontnote kotlinx.serialization.SerializationKt
+-keep,includedescriptorclasses class za.co.malume.driver.data.remote.dto.**$$serializer { *; }
+-keepclassmembers class za.co.malume.driver.data.remote.dto.** {
+    *** Companion;
+}
+-keepclasseswithmembers class za.co.malume.driver.data.remote.dto.** {
+    kotlinx.serialization.KSerializer serializer(...);
+}
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
+# SignalR Java Client + Gson serialization
+-keep class com.microsoft.signalr.** { *; }
+-dontwarn com.microsoft.signalr.**
+-keepclassmembers class za.co.malume.driver.data.remote.dto.DriverTelemetryPingDto { *; }
+-keep class com.google.gson.** { *; }
+
+# SQLCipher
+-keep class net.zetetic.** { *; }
+-dontwarn net.zetetic.**

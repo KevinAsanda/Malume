@@ -1,5 +1,6 @@
 using Hangfire;
 using Hangfire.SqlServer;
+using Malume.Api.Hubs;
 using Malume.Api.Middleware;
 using Malume.Api.Security;
 using Malume.Api.Services;
@@ -7,6 +8,7 @@ using Malume.Api.Startup;
 using Malume.Application;
 using Malume.Application.Abstractions.Identity;
 using Malume.Application.Abstractions.Jobs;
+using Malume.Application.Abstractions.Realtime;
 using Malume.Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.OpenApi.Models;
@@ -49,6 +51,9 @@ builder.Services.AddAuthorization(MalumePolicies.AddMalumePolicies);
 
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<ApiExceptionHandler>();
+
+builder.Services.AddSignalR();
+builder.Services.AddSingleton<ITripRealtimeNotifier, SignalRTripRealtimeNotifier>();
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -119,6 +124,7 @@ if (hangfireEnabled)
 }
 
 app.MapControllers();
+app.MapHub<TripTelemetryHub>("/hubs/trips");
 
 app.Run();
 
