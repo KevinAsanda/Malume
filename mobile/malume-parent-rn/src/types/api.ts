@@ -100,6 +100,10 @@ export interface ParentActiveTripDto {
   driverLatitude?: number | null;
   driverLongitude?: number | null;
   driverLocationUpdatedAtUtc?: string | null;
+  schoolGateLatitude?: number | null;
+  schoolGateLongitude?: number | null;
+  learnerHomeLatitude?: number | null;
+  learnerHomeLongitude?: number | null;
 }
 
 export interface EtaCascadeUpdateDto {
@@ -172,4 +176,64 @@ export interface SosAlertDto {
   onboardLearnerCount: number;
   triggeredAtUtc: string;
   notes?: string | null;
+  incidentId?: string;
+  schoolId?: string;
+  triggeredByRole?: string;
+  status?: string;
+}
+
+export interface InitializeSubscriptionPaymentRequest {
+  routeId: string;
+  learnerId: string;
+  billingMonthStart?: string;
+  callbackUrl?: string;
+}
+
+export interface InitializeSubscriptionPaymentResponse {
+  subscriptionId: string;
+  paystackReference: string;
+  authorizationUrl: string;
+  accessCode: string;
+  publicKey: string;
+  totalAmountZar: number;
+}
+
+export interface VerifySubscriptionPaymentResponse {
+  subscriptionId: string;
+  paystackReference: string;
+  escrowStatus: string;
+  paymentVerified: boolean;
+  totalAmountZar: number;
+}
+
+export interface EscrowMilestoneDto {
+  milestoneId: string;
+  trancheNumber: number;
+  percentage: number;
+  amountZar: number;
+  status: string;
+  scheduledReleaseDate: string;
+  releasedAtUtc?: string | null;
+  paystackTransferCode?: string | null;
+}
+
+export interface SubscriptionEscrowDto {
+  subscriptionId: string;
+  routeId: string;
+  routeName: string;
+  learnerId: string;
+  learnerFullName: string;
+  billingYearMonth: string;
+  totalAmountZar: number;
+  escrowStatus: string;
+  paystackReference?: string | null;
+  milestones: EscrowMilestoneDto[];
+}
+
+export interface DeviceTokenRegistrationDto {
+  deviceTokenId: string;
+  userId: string;
+  platform: string;
+  appVariant: string;
+  lastSeenAtUtc: string;
 }

@@ -1,4 +1,6 @@
+using System.Globalization;
 using Malume.Application.Abstractions.Identity;
+using Malume.Application.Abstractions.Notifications;
 using Malume.Application.Abstractions.Persistence;
 using Malume.Application.Abstractions.Realtime;
 using Malume.Application.Common;
@@ -136,7 +138,11 @@ public sealed class GetParentActiveTripsQueryHandler(
                 stop.EstimatedArrivalUtc,
                 driver.CurrentLocation?.Latitude,
                 driver.CurrentLocation?.Longitude,
-                driver.LastLocationUpdatedAtUtc));
+                driver.LastLocationUpdatedAtUtc,
+                school.SchoolGateLocation.Latitude,
+                school.SchoolGateLocation.Longitude,
+                learner.HomePickupPoint.Latitude,
+                learner.HomePickupPoint.Longitude));
         }
 
         return result
@@ -154,11 +160,13 @@ public sealed class MarkLearnerAbsentCommandHandler(
     ICurrentUserService currentUserService,
     IMalumeDbContext dbContext,
     ITripRealtimeNotifier realtimeNotifier,
+    IPushNotificationService pushNotificationService,
     TimeProvider timeProvider) : IRequestHandler<MarkLearnerAbsentCommand, MarkLearnerAbsentResponse>
 {
     private readonly ICurrentUserService _currentUserService = currentUserService;
     private readonly IMalumeDbContext _dbContext = dbContext;
     private readonly ITripRealtimeNotifier _realtimeNotifier = realtimeNotifier;
+    private readonly IPushNotificationService _pushNotificationService = pushNotificationService;
     private readonly TimeProvider _timeProvider = timeProvider;
 
     public async Task<MarkLearnerAbsentResponse> Handle(
@@ -243,6 +251,23 @@ public sealed class MarkLearnerAbsentCommandHandler(
         if (cascadeUpdates.Count > 0)
         {
             await _realtimeNotifier.NotifyEtaCascadeAsync(trip.Id, cascadeUpdates, cancellationToken);
+
+            foreach (EtaCascadeUpdateDto update in cascadeUpdates)
+            {
+                string sastTime = update.NewEtaUtc.ToOffset(TimeSpan.FromHours(2)).ToString("HH:mm", CultureInfo.InvariantCulture);
+                await _pushNotificationService.SendToUsersAsync(
+                    [update.ParentUserId],
+                    new PushNotificationMessage(
+                        $"Updated ETA ({update.MinutesEarlier} min earlier)",
+                        $"A stop ahead on {update.LearnerFullName}'s route was skipped. Estimated arrival is now {sastTime} SAST.",
+                        new Dictionary<string, string>(StringComparer.Ordinal)
+                        {
+                            ["type"] = "eta_cascade",
+                            ["tripId"] = trip.Id.ToString("D"),
+                            ["learnerId"] = update.LearnerId.ToString("D")
+                        }),
+                    cancellationToken);
+            }
         }
 
         return new MarkLearnerAbsentResponse(

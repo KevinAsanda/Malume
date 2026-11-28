@@ -4,11 +4,13 @@
 @using Malume.Shared.Contracts.Trips
 @using Microsoft.AspNetCore.SignalR
 @using Microsoft.AspNetCore.SignalR.Client
+@using Microsoft.JSInterop
 @attribute [Authorize(Roles = MalumeRoles.SchoolAdmin + "," + MalumeRoles.SysAdmin)]
 @implements IAsyncDisposable
 @inject MalumeApiClient ApiClient
 @inject TokenStore TokenStore
 @inject AuthenticationStateProvider AuthStateProvider
+@inject IJSRuntime JS
 
 <PageTitle>Live Afternoon Gate-Arrival Board — Malume</PageTitle>
 
@@ -39,7 +41,10 @@
 
 @if (!string.IsNullOrWhiteSpace(_sosBanner))
 {
-    <div class="alert alert-danger fw-bold" role="alert">@_sosBanner</div>
+    <div class="alert alert-danger fw-bold d-flex justify-content-between align-items-center" role="alert">
+        <span>@_sosBanner</span>
+        <a href="sos" class="btn btn-sm btn-light">Open SOS Dispatch</a>
+    </div>
 }
 
 @if (!string.IsNullOrWhiteSpace(_errorMessage))
@@ -57,6 +62,16 @@ else if (_board is null)
 }
 else
 {
+    <div class="card mb-3">
+        <div class="card-header bg-light fw-semibold d-flex justify-content-between align-items-center">
+            <span>Live Geofence &amp; Approaching Vehicle Map</span>
+            <span class="small text-muted">Blue: School Gate | Green ring: @_board.GateGeofenceRadiusMeters m pickup zone | Amber ring: 2.0 km perimeter</span>
+        </div>
+        <div class="card-body p-2">
+            <div id="gate-board-map" style="height: 340px; border-radius: 8px;"></div>
+        </div>
+    </div>
+
     List<GateArrivalVehicleDto> approaching = _board.Vehicles.Where(v => v.GateZoneStatus == "Approaching").ToList();
     List<GateArrivalVehicleDto> atZone = _board.Vehicles.Where(v => v.GateZoneStatus == "AtPickupZone").ToList();
     List<GateArrivalVehicleDto> departed = _board.Vehicles.Where(v => v.GateZoneStatus == "Departed").ToList();
@@ -196,6 +211,7 @@ else
     private readonly List<SchoolDto> _schools = [];
     private Guid? _selectedSchoolId;
     private SchoolGateBoardDto? _board;
+    private bool _mapNeedsRender;
     private HubConnection? _hubConnection;
     private bool _hubConnected;
     private bool _isLoading = true;
@@ -275,6 +291,7 @@ else
         try
         {
             _board = await ApiClient.GetSchoolGateBoardAsync(schoolId);
+            _mapNeedsRender = true;
         }
         catch (ApiClientException ex)
         {
@@ -346,8 +363,34 @@ else
         }
     }
 
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_mapNeedsRender && _board is not null)
+        {
+            _mapNeedsRender = false;
+            try
+            {
+                await JS.InvokeVoidAsync("malumeMap.renderGateBoardMap", "gate-board-map", _board);
+            }
+            catch (JSException)
+            {
+            }
+        }
+    }
+
     public async ValueTask DisposeAsync()
     {
+        try
+        {
+            await JS.InvokeVoidAsync("malumeMap.destroyMap", "gate-board-map");
+        }
+        catch (JSException)
+        {
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+
         if (_hubConnection is not null)
         {
             await _hubConnection.DisposeAsync();

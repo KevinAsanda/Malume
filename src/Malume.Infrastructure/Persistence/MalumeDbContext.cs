@@ -35,6 +35,10 @@ public sealed class MalumeDbContext(DbContextOptions<MalumeDbContext> options)
 
     public DbSet<WalletLedgerEntry> WalletLedgerEntries => Set<WalletLedgerEntry>();
 
+    public DbSet<SosIncident> SosIncidents => Set<SosIncident>();
+
+    public DbSet<UserDeviceToken> UserDeviceTokens => Set<UserDeviceToken>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         ArgumentNullException.ThrowIfNull(modelBuilder);

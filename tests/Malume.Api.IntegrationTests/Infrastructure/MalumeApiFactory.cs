@@ -32,6 +32,7 @@ public sealed class MalumeApiFactory : WebApplicationFactory<Program>, IAsyncLif
         builder.UseSetting("Paystack:SecretKey", "");
         builder.UseSetting("Paystack:PublicKey", "pk_test_integration_sim");
         builder.UseSetting("Paystack:WebhookSecret", "malume-test-webhook-secret");
+        builder.UseSetting("Firebase:Enabled", "false");
 
         builder.ConfigureAppConfiguration((_, config) =>
         {
@@ -47,7 +48,8 @@ public sealed class MalumeApiFactory : WebApplicationFactory<Program>, IAsyncLif
                 ["Bootstrap:SysAdminPassword"] = "MalumeAdmin!2026",
                 ["Paystack:SecretKey"] = "",
                 ["Paystack:PublicKey"] = "pk_test_integration_sim",
-                ["Paystack:WebhookSecret"] = "malume-test-webhook-secret"
+                ["Paystack:WebhookSecret"] = "malume-test-webhook-secret",
+                ["Firebase:Enabled"] = "false"
             });
         });
     }

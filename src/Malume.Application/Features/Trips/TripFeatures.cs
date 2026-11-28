@@ -1,5 +1,7 @@
+using System.Globalization;
 using FluentValidation;
 using Malume.Application.Abstractions.Identity;
+using Malume.Application.Abstractions.Notifications;
 using Malume.Application.Abstractions.Persistence;
 using Malume.Application.Abstractions.Realtime;
 using Malume.Application.Abstractions.Security;
@@ -475,12 +477,14 @@ public sealed class BatchSyncHandoversCommandHandler(
     ICurrentUserService currentUserService,
     IMalumeDbContext dbContext,
     IQrBadgeSigner qrBadgeSigner,
-    ITripRealtimeNotifier realtimeNotifier) : IRequestHandler<BatchSyncHandoversCommand, BatchSyncHandoversResponse>
+    ITripRealtimeNotifier realtimeNotifier,
+    IPushNotificationService pushNotificationService) : IRequestHandler<BatchSyncHandoversCommand, BatchSyncHandoversResponse>
 {
     private readonly ICurrentUserService _currentUserService = currentUserService;
     private readonly IMalumeDbContext _dbContext = dbContext;
     private readonly IQrBadgeSigner _qrBadgeSigner = qrBadgeSigner;
     private readonly ITripRealtimeNotifier _realtimeNotifier = realtimeNotifier;
+    private readonly IPushNotificationService _pushNotificationService = pushNotificationService;
 
     public async Task<BatchSyncHandoversResponse> Handle(
         BatchSyncHandoversCommand request,
@@ -598,6 +602,26 @@ public sealed class BatchSyncHandoversCommandHandler(
                     method.ToString(),
                     timestampUtc,
                     cancellationToken);
+
+                if (learnersById.TryGetValue(learnerId, out Learner? learnerInfo))
+                {
+                    string actionText = status == AttendanceStatus.PickedUp ? "picked up" : "safely dropped off";
+                    string methodText = method == HandoverMethod.QrScan ? "QR Scan" : "Daily Fallback PIN";
+                    string sastTime = timestampUtc.ToOffset(TimeSpan.FromHours(2)).ToString("HH:mm", CultureInfo.InvariantCulture);
+                    await _pushNotificationService.SendToUsersAsync(
+                        [learnerInfo.ParentUserId],
+                        new PushNotificationMessage(
+                            "Malume Handover Verified",
+                            $"{learnerInfo.FullName} was {actionText} at {sastTime} SAST via {methodText}.",
+                            new Dictionary<string, string>(StringComparer.Ordinal)
+                            {
+                                ["type"] = "handover",
+                                ["tripId"] = trip.Id.ToString("D"),
+                                ["learnerId"] = learnerId.ToString("D"),
+                                ["status"] = status.ToString()
+                            }),
+                        cancellationToken);
+                }
             }
         }
 
@@ -631,27 +655,95 @@ public sealed class TriggerSosCommandHandler(
     ICurrentUserService currentUserService,
     IMalumeDbContext dbContext,
     ITripRealtimeNotifier realtimeNotifier,
+    IPushNotificationService pushNotificationService,
     TimeProvider timeProvider) : IRequestHandler<TriggerSosCommand, SosAlertDto>
 {
     private readonly ICurrentUserService _currentUserService = currentUserService;
     private readonly IMalumeDbContext _dbContext = dbContext;
     private readonly ITripRealtimeNotifier _realtimeNotifier = realtimeNotifier;
+    private readonly IPushNotificationService _pushNotificationService = pushNotificationService;
     private readonly TimeProvider _timeProvider = timeProvider;
 
     public async Task<SosAlertDto> Handle(TriggerSosCommand request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        (DailyTripInstance trip, DriverProfile driver, _, _, Vehicle vehicle) =
-            await TripLifecycleLoader.LoadOwnedTripAsync(_currentUserService, _dbContext, request.TripId, cancellationToken);
+        User currentUser = await CurrentUserGuard.RequireCurrentUserAsync(_currentUserService, _dbContext, cancellationToken);
+
+        DailyTripInstance trip = await _dbContext.DailyTripInstances
+            .AsNoTracking()
+            .FirstOrDefaultAsync(t => t.Id == request.TripId, cancellationToken)
+            ?? throw new NotFoundException($"Trip '{request.TripId}' was not found.");
+
+        ScheduledRoute route = await _dbContext.ScheduledRoutes
+            .AsNoTracking()
+            .FirstOrDefaultAsync(r => r.Id == trip.RouteId, cancellationToken)
+            ?? throw new NotFoundException($"Scheduled route '{trip.RouteId}' was not found.");
+
+        School school = await _dbContext.Schools
+            .AsNoTracking()
+            .FirstOrDefaultAsync(s => s.Id == route.SchoolId, cancellationToken)
+            ?? throw new NotFoundException($"School '{route.SchoolId}' was not found.");
+
+        DriverProfile driver = await _dbContext.DriverProfiles
+            .AsNoTracking()
+            .FirstOrDefaultAsync(d => d.Id == trip.DriverProfileId, cancellationToken)
+            ?? throw new NotFoundException($"Driver profile '{trip.DriverProfileId}' was not found.");
+
+        Vehicle vehicle = await _dbContext.Vehicles
+            .AsNoTracking()
+            .FirstOrDefaultAsync(v => v.Id == trip.VehicleId, cancellationToken)
+            ?? throw new NotFoundException($"Vehicle '{trip.VehicleId}' was not found.");
+
+        bool authorized = currentUser.Role switch
+        {
+            UserRole.SysAdmin => true,
+            UserRole.Driver => driver.UserId == currentUser.Id,
+            UserRole.Parent => await _dbContext.TripStopManifests
+                .AsNoTracking()
+                .AnyAsync(
+                    m => m.TripId == trip.Id
+                         && _dbContext.Learners.Any(l => l.Id == m.LearnerId && l.ParentUserId == currentUser.Id),
+                    cancellationToken),
+            _ => false
+        };
+
+        if (!authorized)
+        {
+            throw new ForbiddenException("Only the assigned driver, a parent on this trip manifest, or a system administrator can trigger SOS.");
+        }
 
         User driverUser = await _dbContext.Users
             .AsNoTracking()
             .FirstAsync(u => u.Id == driver.UserId, cancellationToken);
 
+        List<Guid> manifestLearnerIds = await _dbContext.TripStopManifests
+            .AsNoTracking()
+            .Where(m => m.TripId == trip.Id)
+            .Select(m => m.LearnerId)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
         int onboardCount = await _dbContext.TripStopManifests
             .AsNoTracking()
             .CountAsync(m => m.TripId == trip.Id && m.AttendanceStatus == AttendanceStatus.PickedUp, cancellationToken);
+
+        DateTimeOffset triggeredAtUtc = _timeProvider.GetUtcNow();
+        var incident = new SosIncident(
+            trip.Id,
+            school.Id,
+            driver.Id,
+            currentUser.Id,
+            currentUser.Role,
+            driverUser.FullName,
+            vehicle.RegistrationNumber,
+            new GeoCoordinate(request.Latitude, request.Longitude),
+            onboardCount,
+            triggeredAtUtc,
+            request.Notes);
+
+        _dbContext.SosIncidents.Add(incident);
+        await _dbContext.SaveChangesAsync(cancellationToken);
 
         var alert = new SosAlertDto(
             trip.Id,
@@ -661,10 +753,58 @@ public sealed class TriggerSosCommandHandler(
             request.Latitude,
             request.Longitude,
             onboardCount,
-            _timeProvider.GetUtcNow(),
-            request.Notes);
+            triggeredAtUtc,
+            incident.Notes,
+            incident.Id,
+            school.Id,
+            currentUser.Role.ToString(),
+            incident.Status.ToString(),
+            incident.AcknowledgedAtUtc,
+            incident.ResolvedAtUtc,
+            incident.ResolutionNotes);
 
         await _realtimeNotifier.NotifySosTriggeredAsync(alert, cancellationToken);
+
+        List<Guid> parentUserIds = manifestLearnerIds.Count == 0
+            ? []
+            : await _dbContext.Learners
+                .AsNoTracking()
+                .Where(l => manifestLearnerIds.Contains(l.Id))
+                .Select(l => l.ParentUserId)
+                .Distinct()
+                .ToListAsync(cancellationToken);
+
+        List<Guid> adminUserIds = await _dbContext.Users
+            .AsNoTracking()
+            .Where(u => u.IsActive && u.Role == UserRole.SysAdmin)
+            .Select(u => u.Id)
+            .ToListAsync(cancellationToken);
+
+        HashSet<Guid> notifyUserIds = [.. parentUserIds, .. adminUserIds];
+        if (school.AdminUserId.HasValue)
+        {
+            notifyUserIds.Add(school.AdminUserId.Value);
+        }
+
+        if (currentUser.Role != UserRole.Driver)
+        {
+            notifyUserIds.Add(driver.UserId);
+        }
+
+        await _pushNotificationService.SendToUsersAsync(
+            notifyUserIds,
+            new PushNotificationMessage(
+                "MALUME SOS ALERT",
+                $"SOS triggered on {vehicle.RegistrationNumber} ({driverUser.FullName}) at {request.Latitude:F4}, {request.Longitude:F4}.",
+                new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["type"] = "sos_alert",
+                    ["incidentId"] = incident.Id.ToString("D"),
+                    ["tripId"] = trip.Id.ToString("D"),
+                    ["schoolId"] = school.Id.ToString("D")
+                }),
+            cancellationToken);
+
         return alert;
     }
 }

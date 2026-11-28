@@ -102,3 +102,12 @@ dotnet ef database update --project src/Malume.Infrastructure --startup-project 
   * Hangfire recurring job `escrow-milestone-payout` (`0 4 * * *` UTC) and `POST /api/v1/admin/jobs/escrow-payouts` evaluate due tranches (`1st` = 40%, `15th` = 30% requiring `>= 85%` trip completion, `Month-End` = 30% after verified handover), freeze unreleased tranches if compliance lapses, and record balanced double-entry pairs in `WalletLedgerEntries`.
 * **Blazor Escrow & Wallet Console:** Sign in as `FleetOwner` or `SysAdmin` and open `/escrow` to configure Fleet Paystack subaccounts, inspect staged tranches, trigger payouts, or issue 1-click pro-rata refunds on paused subscriptions.
 * **Tagged GitHub Releases:** Pushing a semantic version tag (`git tag v1.0.0 && git push origin v1.0.0`) runs `.github/workflows/ci-cd-main.yml` including job `6. Publish GitHub Release (APKs & Blazor Bundle)` to attach signed Driver & Parent APKs and the Blazor WebAssembly bundle.
+
+---
+
+## 10. Phase 6 Local Setup (SOS Dispatch Console, Interactive Maps, Parent Checkout & FCM Push)
+
+* **SOS Dispatch & Lifecycle:** Both the Kotlin Driver app and React Native Parent app can dispatch SOS alerts on `POST /api/v1/trips/{tripId}/sos` (`SosIncidents` table + SignalR `SosIncidentCreated` broadcast to trip, school gate, and admin SOS groups). Sign in as `SysAdmin` or `SchoolAdmin` in `Malume.Web.Portal` and open `/sos` to triage, acknowledge, and resolve incidents.
+* **Interactive Leaflet Maps (`Malume.Web.Portal`):** `/school/gate-board` renders live driver coordinates against the `150 m` pickup zone and `2.0 km` approaching ring, and `/sos` plots active/resolved emergency incidents on Leaflet OpenStreetMap tiles.
+* **Parent App Paystack Checkout & Live Tracker:** Open the **Escrow & Pay** tab in `mobile/malume-parent-rn` to start Paystack monthly checkout, verify references, and monitor 40%/30%/30% tranches; active trip cards on **My Trips** display a live spatial tracker and **SOS Panic** trigger.
+* **Firebase Cloud Messaging (Optional Locally):** Set `Firebase:ServiceAccountFilePath` or `Firebase:ServiceAccountJson` (via `dotnet user-secrets`) or `GOOGLE_APPLICATION_CREDENTIALS` in `src/Malume.Api` to dispatch live FCM notifications to registered tokens (`POST /api/v1/notifications/device-token`). When no credentials are configured, `FirebasePushNotificationService` skips network dispatch cleanly without failing requests.

@@ -12,6 +12,7 @@ import { CorridorSearchScreen } from './src/screens/CorridorSearchScreen';
 import { HomeTripsScreen } from './src/screens/HomeTripsScreen';
 import { LearnersScreen } from './src/screens/LearnersScreen';
 import { LoginScreen } from './src/screens/LoginScreen';
+import { SubscriptionsScreen } from './src/screens/SubscriptionsScreen';
 import { MalumeParentApiClient } from './src/services/apiClient';
 import { ParentRealtimeClient } from './src/services/realtimeClient';
 import {
@@ -21,16 +22,19 @@ import {
   DailyPinDto,
   DriverTelemetryPingDto,
   EtaCascadeUpdateDto,
+  InitializeSubscriptionPaymentResponse,
   LearnerDto,
   LearnerQrBadgeDto,
   OffPeakDriverOptionDto,
   ParentActiveTripDto,
+  ScheduledRouteDto,
   SchoolDto,
   SosAlertDto,
+  SubscriptionEscrowDto,
 } from './src/types/api';
 import { formatSastDate } from './src/utils/formatters';
 
-type TabName = 'trips' | 'learners' | 'corridor';
+type TabName = 'trips' | 'learners' | 'corridor' | 'subscriptions';
 
 function App(): React.JSX.Element {
   const isDarkMode = useColorScheme() === 'dark';
@@ -58,6 +62,10 @@ function ParentAppShell(): React.JSX.Element {
   const [schools, setSchools] = useState<SchoolDto[]>([]);
   const [learners, setLearners] = useState<LearnerDto[]>([]);
   const [activeTrips, setActiveTrips] = useState<ParentActiveTripDto[]>([]);
+  const [scheduledRoutes, setScheduledRoutes] = useState<ScheduledRouteDto[]>([]);
+  const [escrowSubscriptions, setEscrowSubscriptions] = useState<SubscriptionEscrowDto[]>([]);
+  const [pendingCheckout, setPendingCheckout] =
+    useState<InitializeSubscriptionPaymentResponse | null>(null);
   const [corridorOptions, setCorridorOptions] = useState<CorridorAdHocOptionDto[]>([]);
   const [offPeakDrivers, setOffPeakDrivers] = useState<OffPeakDriverOptionDto[]>([]);
   const [activePass, setActivePass] = useState<{
@@ -77,14 +85,18 @@ function ParentAppShell(): React.JSX.Element {
     setIsLoading(true);
     setErrorMessage(null);
     try {
-      const [schoolList, learnerList, tripsList] = await Promise.all([
+      const [schoolList, learnerList, tripsList, routeList, subscriptionList] = await Promise.all([
         apiClient.listSchools(),
         apiClient.listLearners(),
         apiClient.getParentActiveTrips(formatSastDate()),
+        apiClient.listScheduledRoutes(),
+        apiClient.listEscrowSubscriptions(),
       ]);
       setSchools(schoolList);
       setLearners(learnerList);
       setActiveTrips(tripsList);
+      setScheduledRoutes(routeList);
+      setEscrowSubscriptions(subscriptionList);
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : 'Unable to load parent dashboard.');
     } finally {
@@ -174,6 +186,9 @@ function ParentAppShell(): React.JSX.Element {
     setSession(null);
     setActiveTrips([]);
     setLearners([]);
+    setScheduledRoutes([]);
+    setEscrowSubscriptions([]);
+    setPendingCheckout(null);
     setCorridorOptions([]);
     setCascadeAlerts([]);
     setSosAlerts([]);
@@ -278,6 +293,52 @@ function ParentAppShell(): React.JSX.Element {
     }
   };
 
+  const handleTriggerSos = async (tripId: string, latitude: number, longitude: number) => {
+    setErrorMessage(null);
+    setStatusBanner(null);
+    try {
+      const alert = await apiClient.triggerTripSos(tripId, latitude, longitude);
+      setSosAlerts(prev => [alert, ...prev.slice(0, 2)]);
+      setStatusBanner(`SOS Alert dispatched for ${alert.vehicleRegistration}. Help notified.`);
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : 'Unable to dispatch SOS alert.');
+    }
+  };
+
+  const handleInitializePayment = async (routeId: string, learnerId: string) => {
+    setErrorMessage(null);
+    setStatusBanner(null);
+    try {
+      const res = await apiClient.initializeSubscriptionPayment({ routeId, learnerId });
+      setPendingCheckout(res);
+      setStatusBanner(
+        `Paystack checkout initialized (${res.paystackReference}) for R ${res.totalAmountZar.toFixed(2)}.`,
+      );
+      await loadDashboardData();
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : 'Unable to initialize Paystack checkout.');
+    }
+  };
+
+  const handleVerifyPayment = async (reference: string) => {
+    setErrorMessage(null);
+    setStatusBanner(null);
+    try {
+      const verified = await apiClient.verifySubscriptionPayment(reference);
+      setStatusBanner(
+        verified.paymentVerified
+          ? `Payment verified! Escrow status: ${verified.escrowStatus}.`
+          : `Payment reference ${verified.paystackReference} is still ${verified.escrowStatus}.`,
+      );
+      if (verified.paymentVerified) {
+        setPendingCheckout(null);
+      }
+      await loadDashboardData();
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : 'Payment verification failed.');
+    }
+  };
+
   if (!session) {
     return (
       <LoginScreen
@@ -326,6 +387,9 @@ function ParentAppShell(): React.JSX.Element {
             onMarkAbsent={(tripId, learnerId) => {
               void handleMarkAbsent(tripId, learnerId);
             }}
+            onTriggerSos={(tripId, lat, lng) => {
+              void handleTriggerSos(tripId, lat, lng);
+            }}
           />
         )}
 
@@ -361,6 +425,21 @@ function ParentAppShell(): React.JSX.Element {
             }}
           />
         )}
+
+        {activeTab === 'subscriptions' && (
+          <SubscriptionsScreen
+            learners={learners}
+            routes={scheduledRoutes}
+            subscriptions={escrowSubscriptions}
+            pendingCheckout={pendingCheckout}
+            onInitializePayment={(routeId, learnerId) => {
+              void handleInitializePayment(routeId, learnerId);
+            }}
+            onVerifyPayment={reference => {
+              void handleVerifyPayment(reference);
+            }}
+          />
+        )}
       </View>
 
       <View style={styles.tabBar}>
@@ -368,7 +447,8 @@ function ParentAppShell(): React.JSX.Element {
           [
             ['trips', 'My Trips'],
             ['learners', 'Learners & PIN'],
-            ['corridor', 'Corridor Rides'],
+            ['corridor', 'Corridor'],
+            ['subscriptions', 'Escrow & Pay'],
           ] as const
         ).map(([tabKey, label]) => (
           <TouchableOpacity

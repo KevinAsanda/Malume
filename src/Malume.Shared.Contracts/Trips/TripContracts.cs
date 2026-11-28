@@ -111,7 +111,17 @@ public sealed record SosAlertDto(
     double Longitude,
     int OnboardLearnerCount,
     DateTimeOffset TriggeredAtUtc,
-    string? Notes);
+    string? Notes,
+    Guid IncidentId = default,
+    Guid SchoolId = default,
+    string TriggeredByRole = "Driver",
+    string Status = "Active",
+    DateTimeOffset? AcknowledgedAtUtc = null,
+    DateTimeOffset? ResolvedAtUtc = null,
+    string? ResolutionNotes = null);
+
+public sealed record ResolveSosIncidentRequest(
+    string? ResolutionNotes = null);
 
 public sealed record EtaCascadeUpdateDto(
     Guid LearnerId,
@@ -147,7 +157,11 @@ public sealed record ParentActiveTripDto(
     DateTimeOffset? EstimatedArrivalUtc,
     double? DriverLatitude,
     double? DriverLongitude,
-    DateTimeOffset? DriverLocationUpdatedAtUtc);
+    DateTimeOffset? DriverLocationUpdatedAtUtc,
+    double? SchoolGateLatitude = null,
+    double? SchoolGateLongitude = null,
+    double? LearnerHomeLatitude = null,
+    double? LearnerHomeLongitude = null);
 
 public sealed record GateLearnerSummaryDto(
     Guid LearnerId,
@@ -168,7 +182,9 @@ public sealed record GateArrivalVehicleDto(
     int BoardedCount,
     int TotalManifestCount,
     DateTimeOffset? DepartedAtUtc,
-    IReadOnlyList<GateLearnerSummaryDto> Learners);
+    IReadOnlyList<GateLearnerSummaryDto> Learners,
+    double? DriverLatitude = null,
+    double? DriverLongitude = null);
 
 public sealed record SchoolGateBoardDto(
     Guid SchoolId,

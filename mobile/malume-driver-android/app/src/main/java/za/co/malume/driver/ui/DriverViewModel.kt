@@ -3,6 +3,7 @@ package za.co.malume.driver.ui
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.firebase.messaging.FirebaseMessaging
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -112,6 +113,7 @@ class DriverViewModel(application: Application) : AndroidViewModel(application) 
                 container.sessionStore.saveLogin(auth, apiBaseUrl)
             }.onSuccess {
                 _currentScreen.value = DriverScreen.Schedule
+                registerFcmTokenBestEffort()
                 refreshSchedule()
             }.onFailure { err ->
                 _uiState.value = _uiState.value.copy(
@@ -132,6 +134,18 @@ class DriverViewModel(application: Application) : AndroidViewModel(application) 
 
     fun clearMessages() {
         _uiState.value = _uiState.value.copy(errorMessage = null, statusBanner = null)
+    }
+
+    private fun registerFcmTokenBestEffort() {
+        runCatching {
+            FirebaseMessaging.getInstance().token.addOnSuccessListener { token ->
+                if (!token.isNullOrBlank()) {
+                    viewModelScope.launch {
+                        runCatching { container.apiService.registerDeviceToken(token) }
+                    }
+                }
+            }
+        }
     }
 
     fun refreshSchedule() {

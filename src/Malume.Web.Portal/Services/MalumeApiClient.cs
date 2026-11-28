@@ -290,6 +290,38 @@ public sealed class MalumeApiClient(HttpClient httpClient)
         return (await response.Content.ReadFromJsonAsync<ProRataRefundResponse>(cancellationToken: cancellationToken))!;
     }
 
+    public async Task<IReadOnlyList<SosAlertDto>> ListSosIncidentsAsync(
+        bool activeOnly = false,
+        CancellationToken cancellationToken = default)
+    {
+        string path = activeOnly ? "api/v1/sos?activeOnly=true" : "api/v1/sos";
+        HttpResponseMessage response = await _httpClient.GetAsync(path, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        return (await response.Content.ReadFromJsonAsync<IReadOnlyList<SosAlertDto>>(cancellationToken: cancellationToken)) ?? [];
+    }
+
+    public async Task<SosAlertDto> AcknowledgeSosIncidentAsync(
+        Guid incidentId,
+        CancellationToken cancellationToken = default)
+    {
+        HttpResponseMessage response = await _httpClient.PostAsync($"api/v1/sos/{incidentId}/acknowledge", null, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        return (await response.Content.ReadFromJsonAsync<SosAlertDto>(cancellationToken: cancellationToken))!;
+    }
+
+    public async Task<SosAlertDto> ResolveSosIncidentAsync(
+        Guid incidentId,
+        string? resolutionNotes = null,
+        CancellationToken cancellationToken = default)
+    {
+        HttpResponseMessage response = await _httpClient.PostAsJsonAsync(
+            $"api/v1/sos/{incidentId}/resolve",
+            new ResolveSosIncidentRequest(resolutionNotes),
+            cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        return (await response.Content.ReadFromJsonAsync<SosAlertDto>(cancellationToken: cancellationToken))!;
+    }
+
     private static async Task EnsureSuccessAsync(HttpResponseMessage response, CancellationToken cancellationToken)
     {
         if (response.IsSuccessStatusCode)
