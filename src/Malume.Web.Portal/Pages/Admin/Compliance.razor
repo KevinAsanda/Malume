@@ -1,0 +1,238 @@
+@page "/admin/compliance"
+@attribute [Authorize(Roles = MalumeRoles.SysAdmin)]
+@inject MalumeApiClient ApiClient
+
+<PageTitle>NLTA Compliance Review — Malume</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h1 class="mb-1">NLTA Compliance Review</h1>
+        <p class="text-muted mb-0">Verify driver documents, approve or suspend drivers, and run expiry checks.</p>
+    </div>
+    <button class="btn btn-warning" @onclick="RunExpiryScanAsync" disabled="@_isBusy">
+        Run expiry scan now
+    </button>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(_errorMessage))
+{
+    <div class="alert alert-danger" role="alert">@_errorMessage</div>
+}
+
+@if (_scanResult is not null)
+{
+    <div class="alert alert-success" role="alert">
+        <strong>Scan complete (@_scanResult.EvaluatedDateSast):</strong>
+        Evaluated @_scanResult.DriversEvaluated drivers, marked @_scanResult.MarkedExpiringSoon expiring soon,
+        suspended @_scanResult.Suspended, and paused @_scanResult.SubscriptionsPaused active subscriptions.
+    </div>
+}
+
+@if (_queue is null)
+{
+    <p class="text-muted">Loading compliance review queue...</p>
+}
+else
+{
+    <h4 class="mt-4">Driver Review Queue (@_queue.Drivers.Count)</h4>
+    @if (_queue.Drivers.Count == 0)
+    {
+        <div class="alert alert-light border">No drivers currently require review.</div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-striped align-middle">
+                <thead>
+                    <tr>
+                        <th>Driver</th>
+                        <th>PrDP</th>
+                        <th>Status</th>
+                        <th>Documents</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (ComplianceReviewItemDto item in _queue.Drivers)
+                    {
+                        <tr>
+                            <td>
+                                <strong>@item.Driver.FullName</strong><br />
+                                <small class="text-muted">@item.Driver.Email</small>
+                            </td>
+                            <td>@item.Driver.PrdpNumber</td>
+                            <td><span class="badge bg-secondary">@item.Driver.ComplianceStatus</span></td>
+                            <td>
+                                @if (item.Documents.Count == 0)
+                                {
+                                    <span class="text-muted small">None submitted</span>
+                                }
+                                else
+                                {
+                                    <ul class="list-unstyled mb-0">
+                                        @foreach (ComplianceDocumentDto doc in item.Documents)
+                                        {
+                                            <li class="mb-1">
+                                                <span class="badge @(doc.IsVerified ? "bg-success" : "bg-warning text-dark")">
+                                                    @doc.DocumentType
+                                                </span>
+                                                <small class="ms-1">@doc.DocumentNumber (exp @doc.ExpiryDate)</small>
+                                                @if (!doc.IsVerified)
+                                                {
+                                                    <button class="btn btn-sm btn-outline-success ms-2"
+                                                            @onclick="() => VerifyDocumentAsync(doc.Id)"
+                                                            disabled="@_isBusy">
+                                                        Verify
+                                                    </button>
+                                                }
+                                            </li>
+                                        }
+                                    </ul>
+                                }
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <button class="btn btn-success"
+                                            @onclick="() => ApproveDriverAsync(item.Driver.Id)"
+                                            disabled="@_isBusy">
+                                        Approve
+                                    </button>
+                                    <button class="btn btn-outline-danger"
+                                            @onclick="() => SuspendDriverAsync(item.Driver.Id)"
+                                            disabled="@_isBusy">
+                                        Suspend
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+
+    <h4 class="mt-4">Unverified Vehicle Documents (@_queue.UnverifiedVehicleDocuments.Count)</h4>
+    @if (_queue.UnverifiedVehicleDocuments.Count == 0)
+    {
+        <div class="alert alert-light border">No pending vehicle documents.</div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-sm align-middle">
+                <thead>
+                    <tr>
+                        <th>Type</th>
+                        <th>Number</th>
+                        <th>Expiry</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (ComplianceDocumentDto doc in _queue.UnverifiedVehicleDocuments)
+                    {
+                        <tr>
+                            <td>@doc.DocumentType</td>
+                            <td>@doc.DocumentNumber</td>
+                            <td>@doc.ExpiryDate</td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-success"
+                                        @onclick="() => VerifyDocumentAsync(doc.Id)"
+                                        disabled="@_isBusy">
+                                    Verify
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+}
+
+@code {
+    private ComplianceReviewQueueDto? _queue;
+    private ComplianceScanResultDto? _scanResult;
+    private string? _errorMessage;
+    private bool _isBusy;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadQueueAsync();
+    }
+
+    private async Task LoadQueueAsync()
+    {
+        _errorMessage = null;
+        try
+        {
+            _queue = await ApiClient.GetComplianceReviewQueueAsync();
+        }
+        catch (ApiClientException ex)
+        {
+            _errorMessage = ex.Message;
+        }
+        catch (HttpRequestException ex)
+        {
+            _errorMessage = ex.Message;
+        }
+    }
+
+    private async Task VerifyDocumentAsync(Guid documentId)
+    {
+        await ExecuteBusyAsync(async () =>
+        {
+            await ApiClient.VerifyComplianceDocumentAsync(documentId);
+            await LoadQueueAsync();
+        });
+    }
+
+    private async Task ApproveDriverAsync(Guid driverProfileId)
+    {
+        await ExecuteBusyAsync(async () =>
+        {
+            await ApiClient.ApproveDriverComplianceAsync(driverProfileId);
+            await LoadQueueAsync();
+        });
+    }
+
+    private async Task SuspendDriverAsync(Guid driverProfileId)
+    {
+        await ExecuteBusyAsync(async () =>
+        {
+            await ApiClient.SuspendDriverAsync(driverProfileId);
+            await LoadQueueAsync();
+        });
+    }
+
+    private async Task RunExpiryScanAsync()
+    {
+        await ExecuteBusyAsync(async () =>
+        {
+            _scanResult = await ApiClient.RunComplianceExpiryScanAsync();
+            await LoadQueueAsync();
+        });
+    }
+
+    private async Task ExecuteBusyAsync(Func<Task> action)
+    {
+        _isBusy = true;
+        _errorMessage = null;
+        try
+        {
+            await action();
+        }
+        catch (ApiClientException ex)
+        {
+            _errorMessage = ex.Message;
+        }
+        catch (HttpRequestException ex)
+        {
+            _errorMessage = ex.Message;
+        }
+        finally
+        {
+            _isBusy = false;
+        }
+    }
+}

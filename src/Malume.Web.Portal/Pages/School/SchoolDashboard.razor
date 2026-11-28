@@ -1,0 +1,285 @@
+@page "/school"
+@using System.ComponentModel.DataAnnotations
+@attribute [Authorize(Roles = MalumeRoles.SchoolAdmin)]
+@inject MalumeApiClient ApiClient
+
+<PageTitle>School SGB Portal — Malume</PageTitle>
+
+<h1>School Governing Body (SGB) Portal</h1>
+
+@if (!string.IsNullOrWhiteSpace(_errorMessage))
+{
+    <div class="alert alert-danger" role="alert">@_errorMessage</div>
+}
+
+@if (!string.IsNullOrWhiteSpace(_statusMessage))
+{
+    <div class="alert alert-success" role="alert">@_statusMessage</div>
+}
+
+@if (_isLoading)
+{
+    <p class="text-muted">Loading school portal...</p>
+}
+else if (_school is null)
+{
+    <div class="card" style="max-width: 36rem;">
+        <div class="card-body">
+            <h5 class="card-title">Register Your School</h5>
+            <EditForm Model="_schoolModel" OnValidSubmit="CreateSchoolAsync">
+                <DataAnnotationsValidator />
+                <ValidationSummary class="text-danger small" />
+
+                <div class="mb-2">
+                    <label class="form-label" for="schoolName">School Name</label>
+                    <InputText id="schoolName" class="form-control" @bind-Value="_schoolModel.Name" />
+                </div>
+
+                <div class="mb-2">
+                    <label class="form-label" for="schoolAddr">Address</label>
+                    <InputText id="schoolAddr" class="form-control" @bind-Value="_schoolModel.AddressText" />
+                </div>
+
+                <div class="row mb-2">
+                    <div class="col">
+                        <label class="form-label" for="gateLat">Gate Latitude</label>
+                        <InputNumber id="gateLat" class="form-control" @bind-Value="_schoolModel.GateLatitude" />
+                    </div>
+                    <div class="col">
+                        <label class="form-label" for="gateLng">Gate Longitude</label>
+                        <InputNumber id="gateLng" class="form-control" @bind-Value="_schoolModel.GateLongitude" />
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label" for="schoolEmis">EMIS Number</label>
+                    <InputText id="schoolEmis" class="form-control" @bind-Value="_schoolModel.EmisNumber" />
+                </div>
+
+                <button type="submit" class="btn btn-primary" disabled="@_isBusy">Create School</button>
+            </EditForm>
+        </div>
+    </div>
+}
+else
+{
+    <div class="card mb-4">
+        <div class="card-body">
+            <h5 class="card-title mb-1">@_school.Name</h5>
+            <p class="text-muted mb-0">
+                @_school.AddressText | EMIS: @(_school.EmisNumber ?? "N/A") |
+                Gate: @_school.GateLatitude, @_school.GateLongitude
+            </p>
+        </div>
+    </div>
+
+    <h4>Endorsed Operators (@_endorsements.Count)</h4>
+    @if (_endorsements.Count == 0)
+    {
+        <div class="alert alert-light border mb-4">No drivers endorsed yet.</div>
+    }
+    else
+    {
+        <div class="table-responsive mb-4">
+            <table class="table table-striped align-middle">
+                <thead>
+                    <tr>
+                        <th>Driver</th>
+                        <th>Notes</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (SchoolEndorsementDto item in _endorsements)
+                    {
+                        <tr>
+                            <td><strong>@item.DriverFullName</strong></td>
+                            <td>@(item.Notes ?? "-")</td>
+                            <td>
+                                <span class="badge @(item.IsActive ? "bg-success" : "bg-secondary")">
+                                    @(item.IsActive ? "Endorsed" : "Revoked")
+                                </span>
+                            </td>
+                            <td>
+                                @if (item.IsActive)
+                                {
+                                    <button class="btn btn-sm btn-outline-danger"
+                                            @onclick="() => RevokeEndorsementAsync(item.DriverProfileId)"
+                                            disabled="@_isBusy">
+                                        Revoke
+                                    </button>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+
+    <div class="card" style="max-width: 36rem;">
+        <div class="card-body">
+            <h5 class="card-title">Grant SGB Endorsement Badge</h5>
+            <EditForm Model="_endorseModel" OnValidSubmit="EndorseDriverAsync">
+                <DataAnnotationsValidator />
+                <ValidationSummary class="text-danger small" />
+
+                <div class="mb-2">
+                    <label class="form-label" for="driverSelect">Compliant Driver</label>
+                    <InputSelect id="driverSelect" class="form-select" @bind-Value="_endorseModel.DriverProfileId">
+                        <option value="@Guid.Empty">-- Select Driver --</option>
+                        @foreach (DriverProfileDto driver in _compliantDrivers)
+                        {
+                            <option value="@driver.Id">@driver.FullName (@driver.PrdpNumber)</option>
+                        }
+                    </InputSelect>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label" for="endorseNotes">Notes</label>
+                    <InputText id="endorseNotes" class="form-control" @bind-Value="_endorseModel.Notes" />
+                </div>
+
+                <button type="submit" class="btn btn-primary" disabled="@_isBusy">Endorse Driver</button>
+            </EditForm>
+        </div>
+    </div>
+}
+
+@code {
+    private SchoolDto? _school;
+    private IReadOnlyList<SchoolEndorsementDto> _endorsements = [];
+    private IReadOnlyList<DriverProfileDto> _compliantDrivers = [];
+    private readonly CreateSchoolFormModel _schoolModel = new();
+    private readonly EndorseFormModel _endorseModel = new();
+    private string? _errorMessage;
+    private string? _statusMessage;
+    private bool _isLoading = true;
+    private bool _isBusy;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDashboardAsync();
+    }
+
+    private async Task LoadDashboardAsync()
+    {
+        _isLoading = true;
+        _errorMessage = null;
+
+        try
+        {
+            _school = await ApiClient.GetMySchoolOrNullAsync();
+            if (_school is not null)
+            {
+                _endorsements = await ApiClient.ListMySchoolEndorsementsAsync();
+                _compliantDrivers = await ApiClient.ListActiveCompliantDriversAsync();
+            }
+        }
+        catch (ApiClientException ex)
+        {
+            _errorMessage = ex.Message;
+        }
+        catch (HttpRequestException ex)
+        {
+            _errorMessage = ex.Message;
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task CreateSchoolAsync()
+    {
+        await ExecuteBusyAsync(async () =>
+        {
+            _school = await ApiClient.CreateSchoolAsync(new CreateSchoolRequest(
+                _schoolModel.Name,
+                _schoolModel.AddressText,
+                _schoolModel.GateLatitude,
+                _schoolModel.GateLongitude,
+                _schoolModel.EmisNumber));
+            _statusMessage = $"School '{_school.Name}' registered.";
+            await LoadDashboardAsync();
+        });
+    }
+
+    private async Task EndorseDriverAsync()
+    {
+        if (_endorseModel.DriverProfileId == Guid.Empty)
+        {
+            _errorMessage = "Select a driver to endorse.";
+            return;
+        }
+
+        await ExecuteBusyAsync(async () =>
+        {
+            SchoolEndorsementDto created = await ApiClient.EndorseDriverAsync(
+                new EndorseDriverRequest(_endorseModel.DriverProfileId, _endorseModel.Notes));
+            _statusMessage = $"Endorsed '{created.DriverFullName}'.";
+            _endorseModel.DriverProfileId = Guid.Empty;
+            _endorseModel.Notes = null;
+            await LoadDashboardAsync();
+        });
+    }
+
+    private async Task RevokeEndorsementAsync(Guid driverProfileId)
+    {
+        await ExecuteBusyAsync(async () =>
+        {
+            await ApiClient.RevokeEndorsementAsync(driverProfileId);
+            _statusMessage = "Endorsement revoked.";
+            await LoadDashboardAsync();
+        });
+    }
+
+    private async Task ExecuteBusyAsync(Func<Task> action)
+    {
+        _isBusy = true;
+        _errorMessage = null;
+        _statusMessage = null;
+
+        try
+        {
+            await action();
+        }
+        catch (ApiClientException ex)
+        {
+            _errorMessage = ex.Message;
+        }
+        catch (HttpRequestException ex)
+        {
+            _errorMessage = ex.Message;
+        }
+        finally
+        {
+            _isBusy = false;
+        }
+    }
+
+    private sealed class CreateSchoolFormModel
+    {
+        [Required]
+        public string Name { get; set; } = string.Empty;
+
+        [Required]
+        public string AddressText { get; set; } = string.Empty;
+
+        [Range(-90.0, 90.0)]
+        public double GateLatitude { get; set; } = -26.1076;
+
+        [Range(-180.0, 180.0)]
+        public double GateLongitude { get; set; } = 28.0570;
+
+        public string? EmisNumber { get; set; }
+    }
+
+    private sealed class EndorseFormModel
+    {
+        public Guid DriverProfileId { get; set; }
+
+        public string? Notes { get; set; }
+    }
+}

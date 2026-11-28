@@ -1,4 +1,7 @@
-﻿<div class="top-row ps-3 navbar navbar-dark">
+﻿@inject JwtAuthenticationStateProvider AuthStateProvider
+@inject NavigationManager Navigation
+
+<div class="top-row ps-3 navbar navbar-dark">
     <div class="container-fluid">
         <a class="navbar-brand" href="">Malume Portal</a>
         <button title="Navigation menu" class="navbar-toggler" @onclick="ToggleNavMenu">
@@ -14,16 +17,69 @@
                 <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Dashboard
             </NavLink>
         </div>
+
+        <AuthorizeView Roles="@MalumeRoles.SysAdmin">
+            <Authorized>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="admin/compliance">
+                        <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Compliance Review
+                    </NavLink>
+                </div>
+            </Authorized>
+        </AuthorizeView>
+
+        <AuthorizeView Roles="@MalumeRoles.FleetOwner">
+            <Authorized>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="fleet">
+                        <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Fleet
+                    </NavLink>
+                </div>
+            </Authorized>
+        </AuthorizeView>
+
+        <AuthorizeView Roles="@MalumeRoles.SchoolAdmin">
+            <Authorized>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="school">
+                        <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> School
+                    </NavLink>
+                </div>
+            </Authorized>
+        </AuthorizeView>
+
+        <AuthorizeView>
+            <Authorized>
+                <div class="nav-item px-3 mt-3">
+                    <button class="btn btn-outline-light btn-sm w-100" @onclick="LogoutAsync">
+                        Logout (@context.User.Identity?.Name)
+                    </button>
+                </div>
+            </Authorized>
+            <NotAuthorized>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="login">
+                        <span class="bi bi-plus-square-fill-nav-menu" aria-hidden="true"></span> Login
+                    </NavLink>
+                </div>
+            </NotAuthorized>
+        </AuthorizeView>
     </nav>
 </div>
 
 @code {
-    private bool collapseNavMenu = true;
+    private bool _collapseNavMenu = true;
 
-    private string? NavMenuCssClass => collapseNavMenu ? "collapse" : null;
+    private string? NavMenuCssClass => _collapseNavMenu ? "collapse" : null;
 
     private void ToggleNavMenu()
     {
-        collapseNavMenu = !collapseNavMenu;
+        _collapseNavMenu = !_collapseNavMenu;
+    }
+
+    private async Task LogoutAsync()
+    {
+        await AuthStateProvider.LogoutAsync();
+        Navigation.NavigateTo("login");
     }
 }
