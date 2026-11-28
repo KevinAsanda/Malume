@@ -91,3 +91,14 @@ dotnet ef database update --project src/Malume.Infrastructure --startup-project 
 * **1.5 km Spatial Corridor & Off-Peak E-Hailing:** Parents can register learners, view signed ECDSA QR payloads + Today's 4-digit Daily PIN, search active trips within `1.5 km` (`GET /api/v1/corridor/options`) using SQL Server `geography::STDistance`, book empty seats (`POST /api/v1/corridor/trips/{tripId}/book`), or search compliant off-peak drivers within `5 km` (`GET /api/v1/corridor/off-peak-drivers`).
 * **Mark Absent Today & Dynamic ETA Cascade:** Tapping **Mark Absent Today** calls `POST /api/v1/trips/{tripId}/learners/{learnerId}/mark-absent`, increments `AvailableCorridorSeats` by `1`, recomputes downstream stop ETAs, and pushes `ManifestMutatedEvent` + `EtaCascadeUpdated` over SignalR `/hubs/trips` when downstream stops shift `>= 2 minutes` earlier.
 * **Live Afternoon Gate-Arrival Board:** `SchoolAdmin` and `SysAdmin` users can open `/school/gate-board` in `Malume.Web.Portal` to monitor **Approaching (`< 2.0 km`)**, **At Pickup Zone (`< 150 m`)** boarding progress, **Departed** runs, and SOS banners in real time.
+
+---
+
+## 9. Phase 5 Local Setup (Paystack Test Mode, Staged Escrow & GitHub Releases)
+
+* **Paystack Test Keys (Local User Secrets Only):** Configure `Paystack:SecretKey` (`sk_test_...`) and `Paystack:PublicKey` (`pk_test_...`) in `src/Malume.Api` via `dotnet user-secrets set`. Never commit Paystack keys or webhook secrets into source files.
+* **Staged Milestone Escrow (40% / 30% / 30%):**
+  * Parents initialize payments via `POST /api/v1/payments/subscriptions/initialize` and verify via `POST /api/v1/payments/subscriptions/{reference}/verify` (or signed `x-paystack-signature` webhooks on `POST /api/v1/payments/paystack/webhook`).
+  * Hangfire recurring job `escrow-milestone-payout` (`0 4 * * *` UTC) and `POST /api/v1/admin/jobs/escrow-payouts` evaluate due tranches (`1st` = 40%, `15th` = 30% requiring `>= 85%` trip completion, `Month-End` = 30% after verified handover), freeze unreleased tranches if compliance lapses, and record balanced double-entry pairs in `WalletLedgerEntries`.
+* **Blazor Escrow & Wallet Console:** Sign in as `FleetOwner` or `SysAdmin` and open `/escrow` to configure Fleet Paystack subaccounts, inspect staged tranches, trigger payouts, or issue 1-click pro-rata refunds on paused subscriptions.
+* **Tagged GitHub Releases:** Pushing a semantic version tag (`git tag v1.0.0 && git push origin v1.0.0`) runs `.github/workflows/ci-cd-main.yml` including job `6. Publish GitHub Release (APKs & Blazor Bundle)` to attach signed Driver & Parent APKs and the Blazor WebAssembly bundle.
