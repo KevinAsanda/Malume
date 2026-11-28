@@ -3,6 +3,7 @@ using Malume.Application.Abstractions.Jobs;
 using Malume.Application.Abstractions.Realtime;
 using Malume.Application.Common.Behaviors;
 using Malume.Application.Features.Compliance;
+using Malume.Application.Features.Trips;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;

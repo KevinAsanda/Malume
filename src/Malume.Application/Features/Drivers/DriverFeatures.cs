@@ -7,6 +7,7 @@ using Malume.Application.Common.Mappings;
 using Malume.Domain.Entities;
 using Malume.Domain.Enums;
 using Malume.Domain.Exceptions;
+using Malume.Domain.ValueObjects;
 using Malume.Shared.Contracts.Drivers;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -135,5 +136,61 @@ public sealed class ListDriversQueryHandler(
             .ToListAsync(cancellationToken);
 
         return drivers;
+    }
+}
+
+public sealed record UpdateMyOperatingModeCommand(
+    string OperatingMode,
+    double? CurrentLatitude,
+    double? CurrentLongitude) : IRequest<DriverProfileDto>;
+
+public sealed class UpdateMyOperatingModeCommandValidator : AbstractValidator<UpdateMyOperatingModeCommand>
+{
+    public UpdateMyOperatingModeCommandValidator()
+    {
+        RuleFor(x => x.OperatingMode)
+            .NotEmpty()
+            .Must(m => Enum.TryParse<DriverOperatingMode>(m, ignoreCase: true, out _))
+            .WithMessage("OperatingMode must be FixedRoute or OffPeakAdHoc.");
+        When(x => x.CurrentLatitude.HasValue, () =>
+            RuleFor(x => x.CurrentLatitude!.Value).InclusiveBetween(-90.0, 90.0));
+        When(x => x.CurrentLongitude.HasValue, () =>
+            RuleFor(x => x.CurrentLongitude!.Value).InclusiveBetween(-180.0, 180.0));
+    }
+}
+
+public sealed class UpdateMyOperatingModeCommandHandler(
+    ICurrentUserService currentUserService,
+    IMalumeDbContext dbContext) : IRequestHandler<UpdateMyOperatingModeCommand, DriverProfileDto>
+{
+    private readonly ICurrentUserService _currentUserService = currentUserService;
+    private readonly IMalumeDbContext _dbContext = dbContext;
+
+    public async Task<DriverProfileDto> Handle(
+        UpdateMyOperatingModeCommand request,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        User user = await CurrentUserGuard.RequireCurrentUserAsync(_currentUserService, _dbContext, cancellationToken);
+        if (user.Role != UserRole.Driver)
+        {
+            throw new ForbiddenException("Only drivers can update their operating mode.");
+        }
+
+        DriverProfile profile = await _dbContext.DriverProfiles
+            .FirstOrDefaultAsync(d => d.UserId == user.Id, cancellationToken)
+            ?? throw new NotFoundException("Driver profile was not found.");
+
+        DriverOperatingMode mode = Enum.Parse<DriverOperatingMode>(request.OperatingMode, ignoreCase: true);
+        profile.SetOperatingMode(mode);
+
+        if (request.CurrentLatitude.HasValue && request.CurrentLongitude.HasValue)
+        {
+            profile.UpdateLocation(new GeoCoordinate(request.CurrentLatitude.Value, request.CurrentLongitude.Value));
+        }
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        return profile.ToDto(user);
     }
 }

@@ -105,4 +105,15 @@ public sealed class TripStopManifest : AuditableEntity
         EstimatedArrivalUtc = newEtaUtc;
         MarkUpdated();
     }
+
+    public void UpdateSequenceOrder(int newSequenceOrder)
+    {
+        if (newSequenceOrder <= 0)
+        {
+            throw new DomainException("Stop sequence order must be positive.");
+        }
+
+        SequenceOrder = newSequenceOrder;
+        MarkUpdated();
+    }
 }

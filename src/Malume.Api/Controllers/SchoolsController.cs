@@ -1,8 +1,10 @@
 using Malume.Api.Security;
 using Malume.Application.Features.Endorsements;
 using Malume.Application.Features.Schools;
+using Malume.Shared.Contracts.Auth;
 using Malume.Shared.Contracts.Endorsements;
 using Malume.Shared.Contracts.Tenants;
+using Malume.Shared.Contracts.Trips;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -98,5 +100,21 @@ public sealed class SchoolsController(ISender sender) : ControllerBase
     {
         await _sender.Send(new RevokeEndorsementCommand(driverProfileId), cancellationToken);
         return NoContent();
+    }
+
+    [HttpGet("{schoolId:guid}/gate-board")]
+    [Authorize(Roles = MalumeRoles.SchoolAdmin + "," + MalumeRoles.SysAdmin)]
+    [ProducesResponseType<SchoolGateBoardDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<SchoolGateBoardDto>> GetGateBoardAsync(
+        Guid schoolId,
+        [FromQuery] DateOnly? serviceDate = null,
+        CancellationToken cancellationToken = default)
+    {
+        SchoolGateBoardDto board = await _sender.Send(
+            new GetSchoolGateBoardQuery(schoolId, serviceDate),
+            cancellationToken);
+        return Ok(board);
     }
 }

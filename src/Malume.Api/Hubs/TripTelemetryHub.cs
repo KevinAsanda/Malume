@@ -2,8 +2,10 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using Malume.Application.Abstractions.Identity;
 using Malume.Application.Abstractions.Persistence;
+using Malume.Domain.Common;
 using Malume.Domain.Entities;
 using Malume.Domain.Enums;
+using Malume.Domain.ValueObjects;
 using Malume.Shared.Contracts.Trips;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
@@ -16,15 +18,14 @@ public sealed class TripTelemetryHub(
     IMalumeDbContext dbContext,
     ICurrentUserService currentUserService) : Hub
 {
-    private const double EarthRadiusMeters = 6_371_000.0;
-    private const double ApproachingGateThresholdMeters = 2_000.0;
-
     private readonly IMalumeDbContext _dbContext = dbContext;
     private readonly ICurrentUserService _currentUserService = currentUserService;
 
     public static string TripGroup(Guid tripId) => $"trip:{tripId:D}";
 
     public static string SchoolGroup(Guid schoolId) => $"school:{schoolId:D}";
+
+    public static string ParentGroup(Guid parentUserId) => $"parent:{parentUserId:D}";
 
     public const string AdminSosGroup = "admin:sos";
 
@@ -105,6 +106,17 @@ public sealed class TripTelemetryHub(
         await Groups.AddToGroupAsync(Context.ConnectionId, AdminSosGroup, Context.ConnectionAborted);
     }
 
+    public async Task JoinParentNotificationsGroup()
+    {
+        User user = await RequireCurrentUserAsync();
+        if (user.Role is not (UserRole.Parent or UserRole.SysAdmin))
+        {
+            throw new HubException("Only parents or system administrators can join parent notifications.");
+        }
+
+        await Groups.AddToGroupAsync(Context.ConnectionId, ParentGroup(user.Id), Context.ConnectionAborted);
+    }
+
     public async Task StreamLocation(DriverTelemetryPingDto ping)
     {
         ArgumentNullException.ThrowIfNull(ping);
@@ -116,7 +128,6 @@ public sealed class TripTelemetryHub(
         }
 
         DriverProfile driver = await _dbContext.DriverProfiles
-            .AsNoTracking()
             .FirstOrDefaultAsync(d => d.UserId == user.Id, Context.ConnectionAborted)
             ?? throw new HubException("Driver profile was not found.");
 
@@ -129,6 +140,10 @@ public sealed class TripTelemetryHub(
         {
             throw new HubException("You are not assigned to this trip.");
         }
+
+        var driverCoord = new GeoCoordinate(ping.Latitude, ping.Longitude);
+        driver.UpdateLocation(driverCoord);
+        await _dbContext.SaveChangesAsync(Context.ConnectionAborted);
 
         await Clients.Group(TripGroup(ping.TripId)).SendAsync("LocationUpdated", ping, Context.ConnectionAborted);
 
@@ -144,14 +159,12 @@ public sealed class TripTelemetryHub(
 
             if (school is not null)
             {
-                double distanceMeters = CalculateHaversineDistanceMeters(
-                    ping.Latitude,
-                    ping.Longitude,
-                    school.SchoolGateLocation.Latitude,
-                    school.SchoolGateLocation.Longitude);
-
-                if (distanceMeters <= ApproachingGateThresholdMeters)
+                double distanceMeters = GeoMath.DistanceMeters(driverCoord, school.SchoolGateLocation);
+                if (distanceMeters <= GeoMath.ApproachingGateRadiusMeters)
                 {
+                    bool atPickupZone = distanceMeters <= school.GateGeofenceRadiusMeters;
+                    int etaMinutes = Math.Max(0, (int)Math.Ceiling(GeoMath.EstimateTravelMinutes(distanceMeters)));
+
                     await Clients.Group(SchoolGroup(school.Id)).SendAsync(
                         "SchoolGateApproaching",
                         new
@@ -159,7 +172,9 @@ public sealed class TripTelemetryHub(
                             ping.TripId,
                             SchoolId = school.Id,
                             DistanceMeters = Math.Round(distanceMeters, 1),
-                            AtPickupZone = distanceMeters <= school.GateGeofenceRadiusMeters,
+                            AtPickupZone = atPickupZone,
+                            GateZoneStatus = atPickupZone ? "AtPickupZone" : "Approaching",
+                            EtaMinutes = etaMinutes,
                             ping.RecordedAtUtc
                         },
                         Context.ConnectionAborted);
@@ -193,23 +208,4 @@ public sealed class TripTelemetryHub(
 
         return user;
     }
-
-    private static double CalculateHaversineDistanceMeters(
-        double lat1,
-        double lon1,
-        double lat2,
-        double lon2)
-    {
-        double lat1Rad = DegreesToRadians(lat1);
-        double lat2Rad = DegreesToRadians(lat2);
-        double deltaLat = DegreesToRadians(lat2 - lat1);
-        double deltaLon = DegreesToRadians(lon2 - lon1);
-
-        double a = Math.Sin(deltaLat / 2.0) * Math.Sin(deltaLat / 2.0)
-            + Math.Cos(lat1Rad) * Math.Cos(lat2Rad) * Math.Sin(deltaLon / 2.0) * Math.Sin(deltaLon / 2.0);
-        double c = 2.0 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1.0 - a));
-        return EarthRadiusMeters * c;
-    }
-
-    private static double DegreesToRadians(double degrees) => degrees * (Math.PI / 180.0);
 }
