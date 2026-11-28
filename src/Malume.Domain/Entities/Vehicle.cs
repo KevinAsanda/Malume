@@ -1,4 +1,5 @@
 using Malume.Domain.Common;
+using Malume.Domain.Enums;
 using Malume.Domain.Exceptions;
 
 namespace Malume.Domain.Entities;
@@ -59,6 +60,23 @@ public sealed class Vehicle : AuditableEntity
     public void AssignDriver(Guid? driverProfileId)
     {
         AssignedDriverId = driverProfileId;
+        MarkUpdated();
+    }
+
+    public void UpdateDocumentExpiry(ComplianceDocumentType type, DateOnly expiry)
+    {
+        switch (type)
+        {
+            case ComplianceDocumentType.LicenseDisc:
+                LicenseDiscExpiryDate = expiry;
+                break;
+            case ComplianceDocumentType.CertificateOfFitness:
+                CofExpiryDate = expiry;
+                break;
+            default:
+                throw new DomainException($"Document type '{type}' is not a vehicle compliance document.");
+        }
+
         MarkUpdated();
     }
 }

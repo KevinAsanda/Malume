@@ -48,6 +48,29 @@ public sealed class DriverProfile : AuditableEntity
 
     public DateTimeOffset? LastLocationUpdatedAtUtc { get; private set; }
 
+    public void AssignToFleet(Guid fleetId)
+    {
+        FleetId = fleetId;
+        MarkUpdated();
+    }
+
+    public void UpdateDocumentExpiry(ComplianceDocumentType type, DateOnly expiry)
+    {
+        switch (type)
+        {
+            case ComplianceDocumentType.Prdp:
+                PrdpExpiryDate = expiry;
+                break;
+            case ComplianceDocumentType.PoliceClearance:
+                PoliceClearanceExpiryDate = expiry;
+                break;
+            default:
+                throw new DomainException($"Document type '{type}' is not a driver compliance document.");
+        }
+
+        MarkUpdated();
+    }
+
     public void ApproveCompliance(DateOnly prdpExpiryDate, DateOnly policeClearanceExpiryDate)
     {
         PrdpExpiryDate = prdpExpiryDate;

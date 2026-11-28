@@ -1,11 +1,26 @@
 ﻿@page "/"
+@using System.Security.Claims
 @using System.Text.Json
-@inject HttpClient ApiClient
+@inject MalumeApiClient ApiClient
 
 <PageTitle>Malume Portal</PageTitle>
 
 <h1>Malume B2B2C Portal</h1>
 <p class="text-muted">System Admin, Fleet Owner, and School Governing Body console.</p>
+
+<AuthorizeView>
+    <Authorized>
+        <div class="alert alert-info" role="alert">
+            Signed in as <strong>@context.User.Identity?.Name</strong>
+            <span class="badge bg-primary ms-2">@context.User.FindFirst(ClaimTypes.Role)?.Value</span>
+        </div>
+    </Authorized>
+    <NotAuthorized>
+        <div class="alert alert-secondary" role="alert">
+            Please <a href="login" class="alert-link">sign in</a> to access Compliance Review, Fleet Management, or School SGB tools.
+        </div>
+    </NotAuthorized>
+</AuthorizeView>
 
 <div class="card mt-4" style="max-width: 38rem;">
     <div class="card-body">
@@ -64,8 +79,8 @@
 
         try
         {
-            _apiHealth = await ApiClient.GetFromJsonAsync<HealthStatusResponse>("api/v1/health");
-            _dbHealth = await ApiClient.GetFromJsonAsync<HealthStatusResponse>("api/v1/health/database");
+            _apiHealth = await ApiClient.GetApiHealthAsync();
+            _dbHealth = await ApiClient.GetDatabaseHealthAsync();
         }
         catch (HttpRequestException ex)
         {

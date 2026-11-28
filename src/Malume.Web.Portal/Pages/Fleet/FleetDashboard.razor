@@ -1,0 +1,316 @@
+@page "/fleet"
+@using System.ComponentModel.DataAnnotations
+@attribute [Authorize(Roles = MalumeRoles.FleetOwner)]
+@inject MalumeApiClient ApiClient
+
+<PageTitle>Fleet Portal — Malume</PageTitle>
+
+<h1>Fleet Management</h1>
+
+@if (!string.IsNullOrWhiteSpace(_errorMessage))
+{
+    <div class="alert alert-danger" role="alert">@_errorMessage</div>
+}
+
+@if (!string.IsNullOrWhiteSpace(_statusMessage))
+{
+    <div class="alert alert-success" role="alert">@_statusMessage</div>
+}
+
+@if (_isLoading)
+{
+    <p class="text-muted">Loading fleet details...</p>
+}
+else if (_fleet is null)
+{
+    <div class="card" style="max-width: 34rem;">
+        <div class="card-body">
+            <h5 class="card-title">Create Your Fleet</h5>
+            <EditForm Model="_fleetModel" OnValidSubmit="CreateFleetAsync">
+                <DataAnnotationsValidator />
+                <ValidationSummary class="text-danger small" />
+
+                <div class="mb-3">
+                    <label class="form-label" for="fleetName">Fleet Name</label>
+                    <InputText id="fleetName" class="form-control" @bind-Value="_fleetModel.Name" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label" for="fleetReg">Company Registration Number</label>
+                    <InputText id="fleetReg" class="form-control" @bind-Value="_fleetModel.CompanyRegistrationNumber" />
+                </div>
+
+                <button type="submit" class="btn btn-primary" disabled="@_isBusy">Create Fleet</button>
+            </EditForm>
+        </div>
+    </div>
+}
+else
+{
+    <div class="card mb-4">
+        <div class="card-body">
+            <h5 class="card-title mb-1">@_fleet.Name</h5>
+            <p class="text-muted mb-0">
+                Reg: @(_fleet.CompanyRegistrationNumber ?? "N/A") |
+                Status: <span class="badge @(_fleet.IsActive ? "bg-success" : "bg-secondary")">@(_fleet.IsActive ? "Active" : "Inactive")</span>
+            </p>
+        </div>
+    </div>
+
+    <h4>Vehicles (@_vehicles.Count)</h4>
+    @if (_vehicles.Count == 0)
+    {
+        <div class="alert alert-light border">No vehicles registered yet.</div>
+    }
+    else
+    {
+        <div class="table-responsive mb-4">
+            <table class="table table-striped align-middle">
+                <thead>
+                    <tr>
+                        <th>Registration</th>
+                        <th>Make / Model</th>
+                        <th>Seats</th>
+                        <th>Disc / COF Expiry</th>
+                        <th>Assigned Driver</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (VehicleDto vehicle in _vehicles)
+                    {
+                        <tr>
+                            <td><strong>@vehicle.RegistrationNumber</strong></td>
+                            <td>@vehicle.MakeModel</td>
+                            <td>@vehicle.TotalSeatCapacity</td>
+                            <td>@vehicle.LicenseDiscExpiryDate / @vehicle.CofExpiryDate</td>
+                            <td>
+                                <select class="form-select form-select-sm"
+                                        value="@(vehicle.AssignedDriverId?.ToString() ?? string.Empty)"
+                                        @onchange="(e) => AssignDriverAsync(vehicle.Id, e.Value?.ToString())"
+                                        disabled="@_isBusy">
+                                    <option value="">-- Unassigned --</option>
+                                    @foreach (DriverProfileDto driver in _drivers)
+                                    {
+                                        <option value="@driver.Id">@driver.FullName (@driver.ComplianceStatus)</option>
+                                    }
+                                </select>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+
+    <div class="row g-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Add Vehicle</h5>
+                    <EditForm Model="_vehicleModel" OnValidSubmit="RegisterVehicleAsync">
+                        <DataAnnotationsValidator />
+                        <ValidationSummary class="text-danger small" />
+
+                        <div class="mb-2">
+                            <label class="form-label" for="vehReg">Registration Number</label>
+                            <InputText id="vehReg" class="form-control" @bind-Value="_vehicleModel.RegistrationNumber" />
+                        </div>
+
+                        <div class="mb-2">
+                            <label class="form-label" for="vehModel">Make &amp; Model</label>
+                            <InputText id="vehModel" class="form-control" @bind-Value="_vehicleModel.MakeModel" />
+                        </div>
+
+                        <div class="mb-2">
+                            <label class="form-label" for="vehSeats">Seat Capacity</label>
+                            <InputNumber id="vehSeats" class="form-control" @bind-Value="_vehicleModel.TotalSeatCapacity" />
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col">
+                                <label class="form-label" for="vehDisc">Disc Expiry</label>
+                                <InputDate id="vehDisc" class="form-control" @bind-Value="_vehicleModel.LicenseDiscExpiryDate" />
+                            </div>
+                            <div class="col">
+                                <label class="form-label" for="vehCof">COF Expiry</label>
+                                <InputDate id="vehCof" class="form-control" @bind-Value="_vehicleModel.CofExpiryDate" />
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary" disabled="@_isBusy">Register Vehicle</button>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Hire Driver by Email</h5>
+                    <EditForm Model="_hireModel" OnValidSubmit="HireDriverAsync">
+                        <DataAnnotationsValidator />
+                        <ValidationSummary class="text-danger small" />
+
+                        <div class="mb-3">
+                            <label class="form-label" for="hireEmail">Driver Email</label>
+                            <InputText id="hireEmail" class="form-control" @bind-Value="_hireModel.DriverEmail" />
+                        </div>
+
+                        <button type="submit" class="btn btn-outline-primary" disabled="@_isBusy">Hire Driver</button>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private FleetDto? _fleet;
+    private IReadOnlyList<VehicleDto> _vehicles = [];
+    private IReadOnlyList<DriverProfileDto> _drivers = [];
+    private readonly CreateFleetFormModel _fleetModel = new();
+    private readonly CreateVehicleFormModel _vehicleModel = new();
+    private readonly HireDriverFormModel _hireModel = new();
+    private string? _errorMessage;
+    private string? _statusMessage;
+    private bool _isLoading = true;
+    private bool _isBusy;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDashboardAsync();
+    }
+
+    private async Task LoadDashboardAsync()
+    {
+        _isLoading = true;
+        _errorMessage = null;
+
+        try
+        {
+            _fleet = await ApiClient.GetMyFleetOrNullAsync();
+            if (_fleet is not null)
+            {
+                _vehicles = await ApiClient.ListMyVehiclesAsync();
+                _drivers = await ApiClient.ListFleetDriversAsync();
+            }
+        }
+        catch (ApiClientException ex)
+        {
+            _errorMessage = ex.Message;
+        }
+        catch (HttpRequestException ex)
+        {
+            _errorMessage = ex.Message;
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task CreateFleetAsync()
+    {
+        await ExecuteBusyAsync(async () =>
+        {
+            _fleet = await ApiClient.CreateFleetAsync(
+                new CreateFleetRequest(_fleetModel.Name, _fleetModel.CompanyRegistrationNumber));
+            _statusMessage = $"Fleet '{_fleet.Name}' created.";
+            await LoadDashboardAsync();
+        });
+    }
+
+    private async Task RegisterVehicleAsync()
+    {
+        await ExecuteBusyAsync(async () =>
+        {
+            VehicleDto created = await ApiClient.RegisterVehicleAsync(new CreateVehicleRequest(
+                _vehicleModel.RegistrationNumber,
+                _vehicleModel.MakeModel,
+                _vehicleModel.TotalSeatCapacity,
+                _vehicleModel.LicenseDiscExpiryDate,
+                _vehicleModel.CofExpiryDate));
+            _statusMessage = $"Vehicle '{created.RegistrationNumber}' registered.";
+            _vehicleModel.RegistrationNumber = string.Empty;
+            _vehicleModel.MakeModel = string.Empty;
+            await LoadDashboardAsync();
+        });
+    }
+
+    private async Task HireDriverAsync()
+    {
+        await ExecuteBusyAsync(async () =>
+        {
+            DriverProfileDto hired = await ApiClient.HireDriverAsync(new HireDriverRequest(_hireModel.DriverEmail));
+            _statusMessage = $"Driver '{hired.FullName}' assigned to fleet.";
+            _hireModel.DriverEmail = string.Empty;
+            await LoadDashboardAsync();
+        });
+    }
+
+    private async Task AssignDriverAsync(Guid vehicleId, string? selectedValue)
+    {
+        Guid? driverProfileId = Guid.TryParse(selectedValue, out Guid parsed) ? parsed : null;
+        await ExecuteBusyAsync(async () =>
+        {
+            await ApiClient.AssignVehicleDriverAsync(vehicleId, driverProfileId);
+            _statusMessage = "Vehicle driver assignment updated.";
+            await LoadDashboardAsync();
+        });
+    }
+
+    private async Task ExecuteBusyAsync(Func<Task> action)
+    {
+        _isBusy = true;
+        _errorMessage = null;
+        _statusMessage = null;
+
+        try
+        {
+            await action();
+        }
+        catch (ApiClientException ex)
+        {
+            _errorMessage = ex.Message;
+        }
+        catch (HttpRequestException ex)
+        {
+            _errorMessage = ex.Message;
+        }
+        finally
+        {
+            _isBusy = false;
+        }
+    }
+
+    private sealed class CreateFleetFormModel
+    {
+        [Required]
+        public string Name { get; set; } = string.Empty;
+
+        public string? CompanyRegistrationNumber { get; set; }
+    }
+
+    private sealed class CreateVehicleFormModel
+    {
+        [Required]
+        public string RegistrationNumber { get; set; } = string.Empty;
+
+        [Required]
+        public string MakeModel { get; set; } = string.Empty;
+
+        [Range(1, 80)]
+        public int TotalSeatCapacity { get; set; } = 15;
+
+        public DateOnly LicenseDiscExpiryDate { get; set; } = DateOnly.FromDateTime(DateTime.UtcNow.AddYears(1));
+
+        public DateOnly CofExpiryDate { get; set; } = DateOnly.FromDateTime(DateTime.UtcNow.AddYears(1));
+    }
+
+    private sealed class HireDriverFormModel
+    {
+        [Required]
+        [EmailAddress]
+        public string DriverEmail { get; set; } = string.Empty;
+    }
+}

@@ -1,7 +1,10 @@
 using FluentValidation;
+using Malume.Application.Abstractions.Jobs;
 using Malume.Application.Common.Behaviors;
+using Malume.Application.Features.Compliance;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Malume.Application;
 
@@ -18,6 +21,9 @@ public static class DependencyInjection
         });
 
         services.AddValidatorsFromAssembly(assembly);
+        services.TryAddSingleton(TimeProvider.System);
+        services.AddScoped<EscrowFreezeService>();
+        services.AddScoped<IComplianceExpiryScanner, ComplianceExpiryScanner>();
 
         return services;
     }
