@@ -48,6 +48,16 @@
             </Authorized>
         </AuthorizeView>
 
+        <AuthorizeView Roles="@(MalumeRoles.SchoolAdmin + "," + MalumeRoles.SysAdmin)">
+            <Authorized>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="school/gate-board">
+                        <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Live Gate Board
+                    </NavLink>
+                </div>
+            </Authorized>
+        </AuthorizeView>
+
         <AuthorizeView>
             <Authorized>
                 <div class="nav-item px-3 mt-3">

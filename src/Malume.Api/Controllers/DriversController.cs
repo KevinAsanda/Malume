@@ -1,5 +1,6 @@
 using Malume.Api.Security;
 using Malume.Application.Features.Drivers;
+using Malume.Shared.Contracts.Corridor;
 using Malume.Shared.Contracts.Drivers;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -52,5 +53,25 @@ public sealed class DriversController(ISender sender) : ControllerBase
     {
         IReadOnlyList<DriverProfileDto> drivers = await _sender.Send(new ListDriversQuery(status), cancellationToken);
         return Ok(drivers);
+    }
+
+    [HttpPut("me/operating-mode")]
+    [Authorize(Policy = MalumePolicies.RequireDriver)]
+    [ProducesResponseType<DriverProfileDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<DriverProfileDto>> UpdateMyOperatingModeAsync(
+        [FromBody] UpdateOperatingModeRequest request,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        DriverProfileDto profile = await _sender.Send(
+            new UpdateMyOperatingModeCommand(
+                request.OperatingMode,
+                request.CurrentLatitude,
+                request.CurrentLongitude),
+            cancellationToken);
+
+        return Ok(profile);
     }
 }

@@ -1,0 +1,356 @@
+@page "/school/gate-board"
+@using Malume.Shared.Contracts.Auth
+@using Malume.Shared.Contracts.Tenants
+@using Malume.Shared.Contracts.Trips
+@using Microsoft.AspNetCore.SignalR
+@using Microsoft.AspNetCore.SignalR.Client
+@attribute [Authorize(Roles = MalumeRoles.SchoolAdmin + "," + MalumeRoles.SysAdmin)]
+@implements IAsyncDisposable
+@inject MalumeApiClient ApiClient
+@inject TokenStore TokenStore
+@inject AuthenticationStateProvider AuthStateProvider
+
+<PageTitle>Live Afternoon Gate-Arrival Board — Malume</PageTitle>
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <div>
+        <h1 class="mb-0">Live Afternoon Gate-Arrival Board</h1>
+        @if (_board is not null)
+        {
+            <div class="text-muted small">
+                @_board.SchoolName | Date: @_board.ServiceDate.ToString("yyyy-MM-dd") | Geofence: @(_board.GateGeofenceRadiusMeters)m |
+                <span class="badge @(_hubConnected ? "bg-success" : "bg-secondary")">@(_hubConnected ? "SignalR Live" : "Connecting...")</span>
+            </div>
+        }
+    </div>
+    <div class="d-flex gap-2 align-items-center">
+        @if (_schools.Count > 1)
+        {
+            <select class="form-select form-select-sm" value="@_selectedSchoolId" @onchange="OnSchoolChangedAsync">
+                @foreach (SchoolDto school in _schools)
+                {
+                    <option value="@school.Id">@school.Name</option>
+                }
+            </select>
+        }
+        <button class="btn btn-outline-primary btn-sm" @onclick="RefreshBoardAsync" disabled="@_isLoading">Refresh</button>
+    </div>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(_sosBanner))
+{
+    <div class="alert alert-danger fw-bold" role="alert">@_sosBanner</div>
+}
+
+@if (!string.IsNullOrWhiteSpace(_errorMessage))
+{
+    <div class="alert alert-warning" role="alert">@_errorMessage</div>
+}
+
+@if (_isLoading)
+{
+    <p class="text-muted">Loading live school gate board...</p>
+}
+else if (_board is null)
+{
+    <div class="alert alert-info">Create or select a school profile to view the Live Afternoon Gate-Arrival Board.</div>
+}
+else
+{
+    List<GateArrivalVehicleDto> approaching = _board.Vehicles.Where(v => v.GateZoneStatus == "Approaching").ToList();
+    List<GateArrivalVehicleDto> atZone = _board.Vehicles.Where(v => v.GateZoneStatus == "AtPickupZone").ToList();
+    List<GateArrivalVehicleDto> departed = _board.Vehicles.Where(v => v.GateZoneStatus == "Departed").ToList();
+    List<GateArrivalVehicleDto> other = _board.Vehicles
+        .Where(v => v.GateZoneStatus is not ("Approaching" or "AtPickupZone" or "Departed"))
+        .ToList();
+
+    <div class="row g-3">
+        <div class="col-lg-4">
+            <div class="card border-warning h-100">
+                <div class="card-header bg-warning-subtle fw-semibold">
+                    Approaching (&lt; 2.0 km) (@approaching.Count)
+                </div>
+                <div class="card-body d-flex flex-column gap-2">
+                    @if (approaching.Count == 0)
+                    {
+                        <span class="text-muted small">No scholar vehicles within 2 km yet.</span>
+                    }
+                    else
+                    {
+                        @foreach (GateArrivalVehicleDto vehicle in approaching)
+                        {
+                            <div class="border rounded p-2">
+                                <div class="d-flex justify-content-between">
+                                    <strong>@vehicle.VehicleRegistration</strong>
+                                    <span class="badge bg-warning text-dark">@(vehicle.EtaMinutes ?? 0) min (@(vehicle.DistanceToGateMeters ?? 0)m)</span>
+                                </div>
+                                <div class="small text-muted">@vehicle.DriverFullName • @vehicle.RouteName</div>
+                                <div class="small mt-1">
+                                    Manifest: @string.Join(", ", vehicle.Learners.Select(l => $"{l.LearnerFullName} ({l.Grade})"))
+                                </div>
+                            </div>
+                        }
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card border-success h-100">
+                <div class="card-header bg-success-subtle fw-semibold">
+                    At Pickup Zone (&lt; @_board.GateGeofenceRadiusMeters m) (@atZone.Count)
+                </div>
+                <div class="card-body d-flex flex-column gap-2">
+                    @if (atZone.Count == 0)
+                    {
+                        <span class="text-muted small">No vehicles currently docked at the school gate.</span>
+                    }
+                    else
+                    {
+                        @foreach (GateArrivalVehicleDto vehicle in atZone)
+                        {
+                            <div class="border rounded p-2">
+                                <div class="d-flex justify-content-between">
+                                    <strong>@vehicle.VehicleRegistration</strong>
+                                    <span class="badge bg-success">@vehicle.BoardedCount / @vehicle.TotalManifestCount Boarded</span>
+                                </div>
+                                <div class="small text-muted">@vehicle.DriverFullName • @vehicle.RouteName</div>
+                                <ul class="list-unstyled small mb-0 mt-1">
+                                    @foreach (GateLearnerSummaryDto learner in vehicle.Learners)
+                                    {
+                                        <li>@learner.LearnerFullName (@learner.Grade) — <strong>@learner.AttendanceStatus</strong></li>
+                                    }
+                                </ul>
+                            </div>
+                        }
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card border-secondary h-100">
+                <div class="card-header bg-light fw-semibold">
+                    Departed (@departed.Count)
+                </div>
+                <div class="card-body d-flex flex-column gap-2">
+                    @if (departed.Count == 0)
+                    {
+                        <span class="text-muted small">No departed runs logged yet.</span>
+                    }
+                    else
+                    {
+                        @foreach (GateArrivalVehicleDto vehicle in departed)
+                        {
+                            <div class="border rounded p-2">
+                                <div class="d-flex justify-content-between">
+                                    <strong>@vehicle.VehicleRegistration</strong>
+                                    <span class="badge bg-secondary">@vehicle.BoardedCount / @vehicle.TotalManifestCount Boarded</span>
+                                </div>
+                                <div class="small text-muted">@vehicle.DriverFullName • @vehicle.RouteName</div>
+                                <div class="small">
+                                    Departed: @(vehicle.DepartedAtUtc?.ToOffset(TimeSpan.FromHours(2)).ToString("HH:mm") ?? "Logged") SAST
+                                </div>
+                            </div>
+                        }
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (other.Count > 0)
+    {
+        <div class="mt-4">
+            <h5>Scheduled / En Route (&gt; 2.0 km away) (@other.Count)</h5>
+            <div class="table-responsive">
+                <table class="table table-sm table-striped">
+                    <thead>
+                        <tr>
+                            <th>Vehicle</th>
+                            <th>Driver</th>
+                            <th>Route</th>
+                            <th>Status</th>
+                            <th>Boarded</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (GateArrivalVehicleDto vehicle in other)
+                        {
+                            <tr>
+                                <td>@vehicle.VehicleRegistration</td>
+                                <td>@vehicle.DriverFullName</td>
+                                <td>@vehicle.RouteName</td>
+                                <td>@vehicle.GateZoneStatus</td>
+                                <td>@vehicle.BoardedCount / @vehicle.TotalManifestCount</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+}
+
+@code {
+    private readonly List<SchoolDto> _schools = [];
+    private Guid? _selectedSchoolId;
+    private SchoolGateBoardDto? _board;
+    private HubConnection? _hubConnection;
+    private bool _hubConnected;
+    private bool _isLoading = true;
+    private string? _errorMessage;
+    private string? _sosBanner;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await InitializeSchoolSelectionAsync();
+        await RefreshBoardAsync();
+        await ConnectSignalRAsync();
+    }
+
+    private async Task InitializeSchoolSelectionAsync()
+    {
+        _errorMessage = null;
+        try
+        {
+            AuthenticationState authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            if (authState.User.IsInRole(MalumeRoles.SysAdmin))
+            {
+                IReadOnlyList<SchoolDto> list = await ApiClient.ListSchoolsAsync();
+                _schools.Clear();
+                _schools.AddRange(list);
+                _selectedSchoolId = _schools.FirstOrDefault()?.Id;
+            }
+            else
+            {
+                IReadOnlyList<SchoolDto> list = await ApiClient.ListSchoolsAsync();
+                string? schoolClaim = authState.User.FindFirst(MalumeClaimTypes.TenantSchoolId)?.Value;
+                if (Guid.TryParse(schoolClaim, out Guid claimedSchoolId))
+                {
+                    _selectedSchoolId = claimedSchoolId;
+                    _schools.Clear();
+                    _schools.AddRange(list.Where(s => s.Id == claimedSchoolId));
+                }
+                else
+                {
+                    _selectedSchoolId = list.FirstOrDefault()?.Id;
+                }
+            }
+        }
+        catch (ApiClientException ex)
+        {
+            _errorMessage = ex.Message;
+        }
+        catch (HttpRequestException ex)
+        {
+            _errorMessage = ex.Message;
+        }
+    }
+
+    private async Task OnSchoolChangedAsync(ChangeEventArgs args)
+    {
+        if (Guid.TryParse(args.Value?.ToString(), out Guid nextId))
+        {
+            _selectedSchoolId = nextId;
+            await RefreshBoardAsync();
+            if (_hubConnection is not null && _hubConnection.State == HubConnectionState.Connected)
+            {
+                await _hubConnection.InvokeAsync("JoinSchoolGateGroup", nextId);
+            }
+        }
+    }
+
+    private async Task RefreshBoardAsync()
+    {
+        if (_selectedSchoolId is not Guid schoolId)
+        {
+            _isLoading = false;
+            return;
+        }
+
+        _isLoading = true;
+        _errorMessage = null;
+
+        try
+        {
+            _board = await ApiClient.GetSchoolGateBoardAsync(schoolId);
+        }
+        catch (ApiClientException ex)
+        {
+            _errorMessage = ex.Message;
+        }
+        catch (HttpRequestException ex)
+        {
+            _errorMessage = ex.Message;
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task ConnectSignalRAsync()
+    {
+        if (_selectedSchoolId is not Guid schoolId || ApiClient.BaseAddress is null)
+        {
+            return;
+        }
+
+        Uri hubUri = new(ApiClient.BaseAddress, "/hubs/trips");
+        _hubConnection = new HubConnectionBuilder()
+            .WithUrl(hubUri, options =>
+            {
+                options.AccessTokenProvider = async () => (await TokenStore.GetAsync())?.AccessToken;
+            })
+            .WithAutomaticReconnect()
+            .Build();
+
+        _hubConnection.On<object>("SchoolGateApproaching", async _ =>
+        {
+            await RefreshBoardAsync();
+            await InvokeAsync(StateHasChanged);
+        });
+
+        _hubConnection.On<object>("HandoverRecorded", async _ =>
+        {
+            await RefreshBoardAsync();
+            await InvokeAsync(StateHasChanged);
+        });
+
+        _hubConnection.On<object>("TripStatusChanged", async _ =>
+        {
+            await RefreshBoardAsync();
+            await InvokeAsync(StateHasChanged);
+        });
+
+        _hubConnection.On<SosAlertDto>("SosIncidentCreated", async alert =>
+        {
+            _sosBanner = $"SOS ALERT: {alert.DriverName} ({alert.VehicleRegistration}) at {alert.Latitude:F4}, {alert.Longitude:F4} — {alert.OnboardLearnerCount} learner(s) onboard";
+            await InvokeAsync(StateHasChanged);
+        });
+
+        try
+        {
+            await _hubConnection.StartAsync();
+            await _hubConnection.InvokeAsync("JoinSchoolGateGroup", schoolId);
+            _hubConnected = true;
+        }
+        catch (HttpRequestException ex)
+        {
+            _errorMessage = $"SignalR realtime connection deferred: {ex.Message}";
+        }
+        catch (HubException ex)
+        {
+            _errorMessage = $"SignalR hub notice: {ex.Message}";
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_hubConnection is not null)
+        {
+            await _hubConnection.DisposeAsync();
+        }
+    }
+}

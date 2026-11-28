@@ -3,6 +3,7 @@ using Malume.Application.Abstractions.Persistence;
 using Malume.Application.Abstractions.Security;
 using Malume.Infrastructure.Identity;
 using Malume.Infrastructure.Persistence;
+using Malume.Infrastructure.Persistence.Queries;
 using Malume.Infrastructure.Persistence.Repositories;
 using Malume.Infrastructure.Security;
 using Microsoft.EntityFrameworkCore;
@@ -38,6 +39,7 @@ public static class DependencyInjection
         });
 
         services.AddScoped<IMalumeDbContext>(sp => sp.GetRequiredService<MalumeDbContext>());
+        services.AddScoped<ISpatialCorridorQueryService, SpatialCorridorQueryService>();
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddSingleton<IPasswordHasher, Pbkdf2PasswordHasher>();
         services.AddSingleton<IJwtTokenGenerator, JwtTokenGenerator>();

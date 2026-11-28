@@ -5,6 +5,7 @@ using Malume.Shared.Contracts.Drivers;
 using Malume.Shared.Contracts.Endorsements;
 using Malume.Shared.Contracts.Health;
 using Malume.Shared.Contracts.Tenants;
+using Malume.Shared.Contracts.Trips;
 using Malume.Shared.Contracts.Vehicles;
 
 namespace Malume.Web.Portal.Services;
@@ -213,6 +214,26 @@ public sealed class MalumeApiClient(HttpClient httpClient)
         HttpResponseMessage response = await _httpClient.PostAsync("api/v1/admin/jobs/compliance-scan", null, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<ComplianceScanResultDto>(cancellationToken: cancellationToken))!;
+    }
+
+    public async Task<IReadOnlyList<SchoolDto>> ListSchoolsAsync(CancellationToken cancellationToken = default)
+    {
+        HttpResponseMessage response = await _httpClient.GetAsync("api/v1/schools", cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        return (await response.Content.ReadFromJsonAsync<IReadOnlyList<SchoolDto>>(cancellationToken: cancellationToken)) ?? [];
+    }
+
+    public async Task<SchoolGateBoardDto> GetSchoolGateBoardAsync(
+        Guid schoolId,
+        DateOnly? serviceDate = null,
+        CancellationToken cancellationToken = default)
+    {
+        string path = serviceDate.HasValue
+            ? $"api/v1/schools/{schoolId}/gate-board?serviceDate={serviceDate.Value:yyyy-MM-dd}"
+            : $"api/v1/schools/{schoolId}/gate-board";
+        HttpResponseMessage response = await _httpClient.GetAsync(path, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        return (await response.Content.ReadFromJsonAsync<SchoolGateBoardDto>(cancellationToken: cancellationToken))!;
     }
 
     private static async Task EnsureSuccessAsync(HttpResponseMessage response, CancellationToken cancellationToken)

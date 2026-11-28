@@ -54,4 +54,42 @@ internal sealed class SignalRTripRealtimeNotifier(IHubContext<TripTelemetryHub> 
             alert,
             cancellationToken);
     }
+
+    public Task NotifyManifestMutatedAsync(
+        Guid tripId,
+        Guid learnerId,
+        string reason,
+        int availableCorridorSeats,
+        CancellationToken cancellationToken) =>
+        _hubContext.Clients.Group(TripTelemetryHub.TripGroup(tripId)).SendAsync(
+            "ManifestMutatedEvent",
+            new
+            {
+                TripId = tripId,
+                LearnerId = learnerId,
+                Reason = reason,
+                AvailableCorridorSeats = availableCorridorSeats
+            },
+            cancellationToken);
+
+    public async Task NotifyEtaCascadeAsync(
+        Guid tripId,
+        IReadOnlyList<EtaCascadeUpdateDto> updates,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(updates);
+
+        await _hubContext.Clients.Group(TripTelemetryHub.TripGroup(tripId)).SendAsync(
+            "EtaCascadeUpdated",
+            updates,
+            cancellationToken);
+
+        foreach (EtaCascadeUpdateDto update in updates)
+        {
+            await _hubContext.Clients.Group(TripTelemetryHub.ParentGroup(update.ParentUserId)).SendAsync(
+                "EtaCascadeUpdated",
+                update,
+                cancellationToken);
+        }
+    }
 }

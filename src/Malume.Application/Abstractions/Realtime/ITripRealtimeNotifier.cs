@@ -21,6 +21,18 @@ public interface ITripRealtimeNotifier
     Task NotifySosTriggeredAsync(
         SosAlertDto alert,
         CancellationToken cancellationToken);
+
+    Task NotifyManifestMutatedAsync(
+        Guid tripId,
+        Guid learnerId,
+        string reason,
+        int availableCorridorSeats,
+        CancellationToken cancellationToken);
+
+    Task NotifyEtaCascadeAsync(
+        Guid tripId,
+        IReadOnlyList<EtaCascadeUpdateDto> updates,
+        CancellationToken cancellationToken);
 }
 
 internal sealed class NullTripRealtimeNotifier : ITripRealtimeNotifier
@@ -41,5 +53,17 @@ internal sealed class NullTripRealtimeNotifier : ITripRealtimeNotifier
 
     public Task NotifySosTriggeredAsync(
         SosAlertDto alert,
+        CancellationToken cancellationToken) => Task.CompletedTask;
+
+    public Task NotifyManifestMutatedAsync(
+        Guid tripId,
+        Guid learnerId,
+        string reason,
+        int availableCorridorSeats,
+        CancellationToken cancellationToken) => Task.CompletedTask;
+
+    public Task NotifyEtaCascadeAsync(
+        Guid tripId,
+        IReadOnlyList<EtaCascadeUpdateDto> updates,
         CancellationToken cancellationToken) => Task.CompletedTask;
 }

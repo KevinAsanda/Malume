@@ -64,12 +64,15 @@ else if (_school is null)
 else
 {
     <div class="card mb-4">
-        <div class="card-body">
-            <h5 class="card-title mb-1">@_school.Name</h5>
-            <p class="text-muted mb-0">
-                @_school.AddressText | EMIS: @(_school.EmisNumber ?? "N/A") |
-                Gate: @_school.GateLatitude, @_school.GateLongitude
-            </p>
+        <div class="card-body d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <div>
+                <h5 class="card-title mb-1">@_school.Name</h5>
+                <p class="text-muted mb-0">
+                    @_school.AddressText | EMIS: @(_school.EmisNumber ?? "N/A") |
+                    Gate: @_school.GateLatitude, @_school.GateLongitude
+                </p>
+            </div>
+            <a class="btn btn-primary" href="school/gate-board">Open Live Gate-Arrival Board</a>
         </div>
     </div>
 

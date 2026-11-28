@@ -130,4 +130,34 @@ public sealed class TripsController(ISender sender) : ControllerBase
             cancellationToken);
         return Accepted(alert);
     }
+
+    [HttpGet("parent/active")]
+    [Authorize(Roles = MalumeRoles.Parent + "," + MalumeRoles.SysAdmin)]
+    [ProducesResponseType<IReadOnlyList<ParentActiveTripDto>>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyList<ParentActiveTripDto>>> GetParentActiveTripsAsync(
+        [FromQuery] DateOnly? serviceDate = null,
+        CancellationToken cancellationToken = default)
+    {
+        IReadOnlyList<ParentActiveTripDto> trips = await _sender.Send(
+            new GetParentActiveTripsQuery(serviceDate),
+            cancellationToken);
+        return Ok(trips);
+    }
+
+    [HttpPost("{tripId:guid}/learners/{learnerId:guid}/mark-absent")]
+    [Authorize(Roles = MalumeRoles.Parent + "," + MalumeRoles.SchoolAdmin + "," + MalumeRoles.SysAdmin)]
+    [ProducesResponseType<MarkLearnerAbsentResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<MarkLearnerAbsentResponse>> MarkLearnerAbsentAsync(
+        Guid tripId,
+        Guid learnerId,
+        CancellationToken cancellationToken)
+    {
+        MarkLearnerAbsentResponse result = await _sender.Send(
+            new MarkLearnerAbsentCommand(tripId, learnerId),
+            cancellationToken);
+        return Ok(result);
+    }
 }
