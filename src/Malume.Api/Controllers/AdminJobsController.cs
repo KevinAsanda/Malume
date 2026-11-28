@@ -1,6 +1,8 @@
 using Malume.Api.Security;
 using Malume.Application.Features.Compliance;
+using Malume.Application.Features.Escrow;
 using Malume.Shared.Contracts.Compliance;
+using Malume.Shared.Contracts.Escrow;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -21,6 +23,18 @@ public sealed class AdminJobsController(ISender sender) : ControllerBase
     {
         ComplianceScanResultDto result = await _sender.Send(
             new RunComplianceExpiryScanCommand(),
+            cancellationToken);
+        return Ok(result);
+    }
+
+    [HttpPost("escrow-payouts")]
+    [ProducesResponseType<EscrowPayoutRunResultDto>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<EscrowPayoutRunResultDto>> RunEscrowPayoutsAsync(
+        [FromQuery] DateOnly? asOfDate = null,
+        CancellationToken cancellationToken = default)
+    {
+        EscrowPayoutRunResultDto result = await _sender.Send(
+            new RunEscrowPayoutsCommand(asOfDate),
             cancellationToken);
         return Ok(result);
     }

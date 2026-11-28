@@ -1,7 +1,9 @@
 using Malume.Application.Abstractions.Identity;
+using Malume.Application.Abstractions.Payments;
 using Malume.Application.Abstractions.Persistence;
 using Malume.Application.Abstractions.Security;
 using Malume.Infrastructure.Identity;
+using Malume.Infrastructure.Payments;
 using Malume.Infrastructure.Persistence;
 using Malume.Infrastructure.Persistence.Queries;
 using Malume.Infrastructure.Persistence.Repositories;
@@ -22,6 +24,7 @@ public static class DependencyInjection
 
         services.Configure<JwtOptions>(configuration.GetSection(JwtOptions.SectionName));
         services.Configure<QrSigningOptions>(configuration.GetSection(QrSigningOptions.SectionName));
+        services.Configure<PaystackOptions>(configuration.GetSection(PaystackOptions.SectionName));
 
         services.AddDbContext<MalumeDbContext>((serviceProvider, options) =>
         {
@@ -44,6 +47,7 @@ public static class DependencyInjection
         services.AddSingleton<IPasswordHasher, Pbkdf2PasswordHasher>();
         services.AddSingleton<IJwtTokenGenerator, JwtTokenGenerator>();
         services.AddSingleton<IQrBadgeSigner, EcdsaQrBadgeSigner>();
+        services.AddHttpClient<IPaystackGateway, PaystackHttpGateway>();
 
         return services;
     }

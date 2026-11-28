@@ -29,6 +29,9 @@ public sealed class MalumeApiFactory : WebApplicationFactory<Program>, IAsyncLif
         builder.UseSetting("Database:ApplyMigrationsOnStartup", "true");
         builder.UseSetting("Bootstrap:SysAdminEmail", "sysadmin@malume.test");
         builder.UseSetting("Bootstrap:SysAdminPassword", "MalumeAdmin!2026");
+        builder.UseSetting("Paystack:SecretKey", "");
+        builder.UseSetting("Paystack:PublicKey", "pk_test_integration_sim");
+        builder.UseSetting("Paystack:WebhookSecret", "malume-test-webhook-secret");
 
         builder.ConfigureAppConfiguration((_, config) =>
         {
@@ -41,7 +44,10 @@ public sealed class MalumeApiFactory : WebApplicationFactory<Program>, IAsyncLif
                 ["Hangfire:Enabled"] = "false",
                 ["Database:ApplyMigrationsOnStartup"] = "true",
                 ["Bootstrap:SysAdminEmail"] = "sysadmin@malume.test",
-                ["Bootstrap:SysAdminPassword"] = "MalumeAdmin!2026"
+                ["Bootstrap:SysAdminPassword"] = "MalumeAdmin!2026",
+                ["Paystack:SecretKey"] = "",
+                ["Paystack:PublicKey"] = "pk_test_integration_sim",
+                ["Paystack:WebhookSecret"] = "malume-test-webhook-secret"
             });
         });
     }

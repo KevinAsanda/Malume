@@ -3,6 +3,7 @@ using Malume.Application.Abstractions.Jobs;
 using Malume.Application.Abstractions.Realtime;
 using Malume.Application.Common.Behaviors;
 using Malume.Application.Features.Compliance;
+using Malume.Application.Features.Escrow;
 using Malume.Application.Features.Trips;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
@@ -27,6 +28,7 @@ public static class DependencyInjection
         services.TryAddSingleton<ITripRealtimeNotifier, NullTripRealtimeNotifier>();
         services.AddScoped<EscrowFreezeService>();
         services.AddScoped<IComplianceExpiryScanner, ComplianceExpiryScanner>();
+        services.AddScoped<IEscrowPayoutJob, EscrowPayoutProcessor>();
 
         return services;
     }

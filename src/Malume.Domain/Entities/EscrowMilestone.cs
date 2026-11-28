@@ -58,6 +58,12 @@ public sealed class EscrowMilestone : AuditableEntity
         MarkUpdated();
     }
 
+    public void Unfreeze()
+    {
+        Status = EscrowMilestoneStateMachine.Transition(Status, MilestoneStatus.Pending);
+        MarkUpdated();
+    }
+
     public void MarkRefunded()
     {
         Status = EscrowMilestoneStateMachine.Transition(Status, MilestoneStatus.Refunded);
