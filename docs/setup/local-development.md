@@ -82,3 +82,12 @@ dotnet ef database update --project src/Malume.Infrastructure --startup-project 
   * Refresh the Driver schedule while online so the manifest (`QrPublicKeyVerifier` and `DailyPinVerifierHash`) is cached in the SQLCipher-encrypted Room database.
   * Toggle **Airplane Mode** on the emulator/device and verify learners using **Scan QR** (CameraX/ML Kit or manual `MLM1:...` payload entry) or **Daily PIN** (4-digit code from `GET /api/v1/learners/{id}/daily-pin`).
   * Turn connectivity back on: `ConnectivitySyncMonitor` + `HandoverSyncWorker` (WorkManager) automatically flush queued `PENDING` records in chronological order to `POST /api/v1/trips/{tripId}/handovers/batch-sync`.
+
+---
+
+## 8. Phase 4 Local Setup (Parent RN App, Spatial Corridor & Gate Board)
+
+* **React Native Parent App (`mobile/malume-parent-rn`):** Run Metro and Android (`npm start`, `npm run android`) with `Malume.Api` running on `--launch-profile http` (`http://localhost:5144`, accessed from the Android Emulator at `http://10.0.2.2:5144` via `network_security_config.xml`).
+* **1.5 km Spatial Corridor & Off-Peak E-Hailing:** Parents can register learners, view signed ECDSA QR payloads + Today's 4-digit Daily PIN, search active trips within `1.5 km` (`GET /api/v1/corridor/options`) using SQL Server `geography::STDistance`, book empty seats (`POST /api/v1/corridor/trips/{tripId}/book`), or search compliant off-peak drivers within `5 km` (`GET /api/v1/corridor/off-peak-drivers`).
+* **Mark Absent Today & Dynamic ETA Cascade:** Tapping **Mark Absent Today** calls `POST /api/v1/trips/{tripId}/learners/{learnerId}/mark-absent`, increments `AvailableCorridorSeats` by `1`, recomputes downstream stop ETAs, and pushes `ManifestMutatedEvent` + `EtaCascadeUpdated` over SignalR `/hubs/trips` when downstream stops shift `>= 2 minutes` earlier.
+* **Live Afternoon Gate-Arrival Board:** `SchoolAdmin` and `SysAdmin` users can open `/school/gate-board` in `Malume.Web.Portal` to monitor **Approaching (`< 2.0 km`)**, **At Pickup Zone (`< 150 m`)** boarding progress, **Departed** runs, and SOS banners in real time.
