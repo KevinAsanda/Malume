@@ -1,12 +1,14 @@
 import React from 'react';
 import {
   ActivityIndicator,
+  Alert,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { LiveTripMapCard } from '../components/LiveTripMapCard';
 import {
   DriverTelemetryPingDto,
   EtaCascadeUpdateDto,
@@ -24,6 +26,7 @@ interface HomeTripsScreenProps {
   isLoading: boolean;
   onRefresh: () => void;
   onMarkAbsent: (tripId: string, learnerId: string) => void;
+  onTriggerSos?: (tripId: string, latitude: number, longitude: number) => void;
 }
 
 export function HomeTripsScreen({
@@ -35,6 +38,7 @@ export function HomeTripsScreen({
   isLoading,
   onRefresh,
   onMarkAbsent,
+  onTriggerSos,
 }: HomeTripsScreenProps): React.JSX.Element {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -85,6 +89,27 @@ export function HomeTripsScreen({
           const lat = ping?.latitude ?? item.driverLatitude;
           const lng = ping?.longitude ?? item.driverLongitude;
           const canMarkAbsent = item.attendanceStatus === 'Scheduled';
+          const isTripSosActive = sosAlerts.some(a => a.tripId === item.tripId && a.status !== 'Resolved');
+
+          const confirmSos = () => {
+            if (!onTriggerSos) {
+              return;
+            }
+            const sosLat = lat ?? item.learnerHomeLatitude ?? item.schoolGateLatitude ?? -26.2041;
+            const sosLng = lng ?? item.learnerHomeLongitude ?? item.schoolGateLongitude ?? 28.0473;
+            Alert.alert(
+              'Trigger Emergency SOS?',
+              `Send an immediate emergency SOS alert for ${item.vehicleRegistration} to school admin, driver, and dispatch?`,
+              [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Send SOS',
+                  style: 'destructive',
+                  onPress: () => onTriggerSos(item.tripId, sosLat, sosLng),
+                },
+              ],
+            );
+          };
 
           return (
             <View key={`${item.tripId}-${item.learnerId}`} style={styles.card}>
@@ -111,13 +136,25 @@ export function HomeTripsScreen({
                 </Text>
               ) : null}
 
-              {canMarkAbsent ? (
-                <TouchableOpacity
-                  style={styles.absentBtn}
-                  onPress={() => onMarkAbsent(item.tripId, item.learnerId)}>
-                  <Text style={styles.absentBtnText}>Mark Absent Today</Text>
-                </TouchableOpacity>
-              ) : null}
+              <LiveTripMapCard trip={item} livePing={ping} isSosActive={isTripSosActive} />
+
+              <View style={styles.cardActionsRow}>
+                {canMarkAbsent ? (
+                  <TouchableOpacity
+                    style={[styles.absentBtn, styles.flexActionBtn]}
+                    onPress={() => onMarkAbsent(item.tripId, item.learnerId)}>
+                    <Text style={styles.absentBtnText}>Mark Absent Today</Text>
+                  </TouchableOpacity>
+                ) : null}
+
+                {onTriggerSos ? (
+                  <TouchableOpacity
+                    style={[styles.sosBtn, canMarkAbsent ? undefined : styles.flexActionBtn]}
+                    onPress={confirmSos}>
+                    <Text style={styles.sosBtnText}>SOS Panic</Text>
+                  </TouchableOpacity>
+                ) : null}
+              </View>
             </View>
           );
         })
@@ -191,7 +228,6 @@ const styles = StyleSheet.create({
   etaHighlight: { fontSize: 13, fontWeight: '700', color: '#0369A1', marginTop: 4 },
   gpsLine: { fontSize: 12, color: '#059669' },
   absentBtn: {
-    marginTop: 8,
     backgroundColor: '#FEF3C7',
     borderWidth: 1,
     borderColor: '#D97706',
@@ -200,4 +236,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   absentBtnText: { color: '#92400E', fontWeight: '700', fontSize: 14 },
+  cardActionsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 8,
+  },
+  flexActionBtn: {
+    flex: 1,
+  },
+  sosBtn: {
+    backgroundColor: '#DC2626',
+    borderRadius: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sosBtnText: { color: '#FFFFFF', fontWeight: '700', fontSize: 14 },
 });

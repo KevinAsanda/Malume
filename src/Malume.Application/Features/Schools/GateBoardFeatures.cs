@@ -171,7 +171,9 @@ public sealed class GetSchoolGateBoardQueryHandler(
                 boarded,
                 totalActive,
                 trip.CompletedAtUtc,
-                learnerSummaries));
+                learnerSummaries,
+                driver.CurrentLocation?.Latitude,
+                driver.CurrentLocation?.Longitude));
         }
 
         return new SchoolGateBoardDto(

@@ -36,3 +36,10 @@ public enum HandoverMethod
     QrScan = 1,
     FallbackPin = 2
 }
+
+public enum SosIncidentStatus
+{
+    Active = 0,
+    Acknowledged = 1,
+    Resolved = 2
+}

@@ -115,9 +115,10 @@ public sealed class TripsController(ISender sender) : ControllerBase
     }
 
     [HttpPost("{tripId:guid}/sos")]
-    [Authorize(Policy = MalumePolicies.RequireDriver)]
+    [Authorize(Roles = MalumeRoles.Driver + "," + MalumeRoles.Parent + "," + MalumeRoles.SysAdmin)]
     [ProducesResponseType<SosAlertDto>(StatusCodes.Status202Accepted)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
     public async Task<ActionResult<SosAlertDto>> TriggerSosAsync(
         Guid tripId,
         [FromBody] TriggerSosRequest request,

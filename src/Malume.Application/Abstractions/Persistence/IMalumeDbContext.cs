@@ -33,5 +33,9 @@ public interface IMalumeDbContext
 
     DbSet<WalletLedgerEntry> WalletLedgerEntries { get; }
 
+    DbSet<SosIncident> SosIncidents { get; }
+
+    DbSet<UserDeviceToken> UserDeviceTokens { get; }
+
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

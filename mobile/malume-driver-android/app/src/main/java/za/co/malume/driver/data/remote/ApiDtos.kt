@@ -150,6 +150,26 @@ data class SosAlertDto(
     val onboardLearnerCount: Int,
     val triggeredAtUtc: String,
     val notes: String? = null,
+    val incidentId: String? = null,
+    val schoolId: String? = null,
+    val triggeredByRole: String = "Driver",
+    val status: String = "Active",
+)
+
+@Serializable
+data class RegisterDeviceTokenRequestDto(
+    val token: String,
+    val platform: String = "Android",
+    val appVariant: String = "Driver",
+)
+
+@Serializable
+data class DeviceTokenRegistrationDto(
+    val deviceTokenId: String,
+    val userId: String,
+    val platform: String,
+    val appVariant: String,
+    val lastSeenAtUtc: String,
 )
 
 data class DriverTelemetryPingDto(

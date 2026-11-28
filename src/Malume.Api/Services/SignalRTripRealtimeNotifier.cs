@@ -49,6 +49,14 @@ internal sealed class SignalRTripRealtimeNotifier(IHubContext<TripTelemetryHub> 
             alert,
             cancellationToken);
 
+        if (alert.SchoolId != Guid.Empty)
+        {
+            await _hubContext.Clients.Group(TripTelemetryHub.SchoolGroup(alert.SchoolId)).SendAsync(
+                "SosIncidentCreated",
+                alert,
+                cancellationToken);
+        }
+
         await _hubContext.Clients.Group(TripTelemetryHub.AdminSosGroup).SendAsync(
             "SosIncidentCreated",
             alert,

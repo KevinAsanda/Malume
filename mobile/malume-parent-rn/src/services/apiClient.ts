@@ -4,6 +4,9 @@ import {
   CorridorBookingResultDto,
   CreateLearnerRequest,
   DailyPinDto,
+  DeviceTokenRegistrationDto,
+  InitializeSubscriptionPaymentRequest,
+  InitializeSubscriptionPaymentResponse,
   LearnerDto,
   LearnerQrBadgeDto,
   MarkLearnerAbsentResponse,
@@ -12,6 +15,9 @@ import {
   RouteEnrollmentDto,
   ScheduledRouteDto,
   SchoolDto,
+  SosAlertDto,
+  SubscriptionEscrowDto,
+  VerifySubscriptionPaymentResponse,
 } from '../types/api';
 
 export const DEFAULT_API_BASE_URL = 'http://10.0.2.2:5144';
@@ -176,6 +182,59 @@ export class MalumeParentApiClient {
   ): Promise<OffPeakDriverOptionDto[]> {
     const qs = `pickupLatitude=${encodeURIComponent(String(pickupLatitude))}&pickupLongitude=${encodeURIComponent(String(pickupLongitude))}&maxDistanceMeters=${encodeURIComponent(String(maxDistanceMeters))}`;
     return this.request<OffPeakDriverOptionDto[]>(`/api/v1/corridor/off-peak-drivers?${qs}`);
+  }
+
+  initializeSubscriptionPayment(
+    payload: InitializeSubscriptionPaymentRequest,
+  ): Promise<InitializeSubscriptionPaymentResponse> {
+    return this.request<InitializeSubscriptionPaymentResponse>(
+      '/api/v1/payments/subscriptions/initialize',
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      },
+    );
+  }
+
+  verifySubscriptionPayment(reference: string): Promise<VerifySubscriptionPaymentResponse> {
+    return this.request<VerifySubscriptionPaymentResponse>(
+      `/api/v1/payments/subscriptions/${encodeURIComponent(reference)}/verify`,
+      {
+        method: 'POST',
+        body: JSON.stringify({}),
+      },
+    );
+  }
+
+  listEscrowSubscriptions(): Promise<SubscriptionEscrowDto[]> {
+    return this.request<SubscriptionEscrowDto[]>('/api/v1/escrow/subscriptions');
+  }
+
+  triggerTripSos(
+    tripId: string,
+    latitude: number,
+    longitude: number,
+    notes?: string,
+  ): Promise<SosAlertDto> {
+    return this.request<SosAlertDto>(`/api/v1/trips/${tripId}/sos`, {
+      method: 'POST',
+      body: JSON.stringify({
+        latitude,
+        longitude,
+        notes: notes ?? 'Parent SOS Panic triggered from Parent App',
+      }),
+    });
+  }
+
+  registerDeviceToken(
+    token: string,
+    platform = 'Android',
+    appVariant = 'Parent',
+  ): Promise<DeviceTokenRegistrationDto> {
+    return this.request<DeviceTokenRegistrationDto>('/api/v1/notifications/device-token', {
+      method: 'POST',
+      body: JSON.stringify({ token, platform, appVariant }),
+    });
   }
 
   private async request<T>(

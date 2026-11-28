@@ -11,10 +11,12 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import za.co.malume.driver.data.remote.dto.AuthResponseDto
 import za.co.malume.driver.data.remote.dto.BatchSyncHandoversRequestDto
 import za.co.malume.driver.data.remote.dto.BatchSyncHandoversResponseDto
+import za.co.malume.driver.data.remote.dto.DeviceTokenRegistrationDto
 import za.co.malume.driver.data.remote.dto.DriverProfileDto
 import za.co.malume.driver.data.remote.dto.DriverTripSummaryDto
 import za.co.malume.driver.data.remote.dto.LoginRequestDto
 import za.co.malume.driver.data.remote.dto.ProblemDetailsDto
+import za.co.malume.driver.data.remote.dto.RegisterDeviceTokenRequestDto
 import za.co.malume.driver.data.remote.dto.SosAlertDto
 import za.co.malume.driver.data.remote.dto.TriggerSosRequestDto
 import za.co.malume.driver.data.remote.dto.TripManifestDto
@@ -125,6 +127,15 @@ class MalumeApiService(
             .post(body)
             .build()
         return execute(request, SosAlertDto.serializer())
+    }
+
+    suspend fun registerDeviceToken(token: String): DeviceTokenRegistrationDto {
+        val body = json.encodeToString(RegisterDeviceTokenRequestDto(token = token))
+            .toRequestBody(jsonMediaType)
+        val request = authorizedRequestBuilder("/api/v1/notifications/device-token")
+            .post(body)
+            .build()
+        return execute(request, DeviceTokenRegistrationDto.serializer())
     }
 
     private fun authorizedRequestBuilder(path: String): Request.Builder {
