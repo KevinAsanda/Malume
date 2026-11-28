@@ -61,3 +61,12 @@ dotnet ef database update --project src/Malume.Infrastructure --startup-project 
 
 * **Driver Android:** `DRIVER_GOOGLE_SERVICES_JSON_BASE64`, `DRIVER_KEYSTORE_BASE64`, `DRIVER_KEY_ALIAS`, `DRIVER_KEYSTORE_PASSWORD`, `DRIVER_KEY_PASSWORD`
 * **Parent RN Android:** `PARENT_KEYSTORE_BASE64`, `PARENT_KEY_ALIAS`, `PARENT_KEYSTORE_PASSWORD`, `PARENT_KEY_PASSWORD` *(plus optional `PARENT_GOOGLE_SERVICES_JSON_BASE64` once Firebase is wired in Gradle)*
+
+---
+
+## 6. Phase 2 Local Setup (Compliance, Hangfire & Blazor Portal)
+
+* **Bootstrap SysAdmin (dev/local user secrets):** Set `Bootstrap:SysAdminEmail` and `Bootstrap:SysAdminPassword` in `src/Malume.Api` via `dotnet user-secrets set` (e.g. `admin@malume.local`) so `DatabaseInitializerHostedService` seeds the initial `SysAdmin` account on startup when missing. Never store bootstrap passwords in committed `appsettings*.json` files.
+* **Hangfire & Scheduled Compliance Scan:** `Malume.Api` registers Hangfire using the SQL Server `hangfire` schema and schedules `compliance-expiry-scanner` (`0 22 * * *` UTC / `00:00` SAST) to run `IComplianceExpiryScanner`. In `Development`, the Hangfire dashboard is mounted at `/hangfire`.
+* **Manual Compliance Scan Endpoint:** Authenticated `SysAdmin` callers can trigger an immediate scan via `POST /api/v1/admin/jobs/compliance-scan`.
+* **Blazor WASM Portal:** Sign in at `/login` with your JWT credentials to access `/admin/compliance` (`SysAdmin`), `/fleet` (`FleetOwner`), and `/school` (`SchoolAdmin`).
