@@ -3,6 +3,7 @@ name: Malume Full-Stack & Mobile CI/CD Pipeline
 on:
   push:
     branches: [ "main" ]
+    tags: [ "v*" ]
   pull_request:
     branches: [ "main" ]
 
@@ -210,3 +211,48 @@ jobs:
           path: mobile/malume-parent-rn/android/app/build/outputs/apk/release/*.apk
           if-no-files-found: error
           retention-days: 14
+
+  publish-github-release:
+    name: 6. Publish GitHub Release (APKs & Blazor Bundle)
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs:
+      - backend-docker-deploy
+      - web-portal-blazor-deploy
+      - android-driver-kotlin-apk
+      - android-parent-rn-apk
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download Driver Release APK
+        uses: actions/download-artifact@v4
+        with:
+          name: malume-driver-release-apk
+          path: release-assets/driver
+
+      - name: Download Parent Release APK
+        uses: actions/download-artifact@v4
+        with:
+          name: malume-parent-release-apk
+          path: release-assets/parent
+
+      - name: Download & Archive Blazor Portal Bundle
+        uses: actions/download-artifact@v4
+        with:
+          name: malume-web-portal
+          path: release-assets/web-portal
+
+      - name: Package Release Artifacts
+        run: |
+          mkdir -p dist
+          cp release-assets/driver/*.apk dist/malume-driver-${GITHUB_REF_NAME}.apk
+          cp release-assets/parent/*.apk dist/malume-parent-${GITHUB_REF_NAME}.apk
+          (cd release-assets/web-portal && zip -r ../../dist/malume-web-portal-${GITHUB_REF_NAME}.zip .)
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            dist/*.apk
+            dist/*.zip

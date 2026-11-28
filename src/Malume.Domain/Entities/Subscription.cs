@@ -98,4 +98,31 @@ public sealed class Subscription : AuditableEntity
 
         MarkUpdated();
     }
+
+    public void SetPaystackReference(string paystackReference)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(paystackReference);
+        PaystackReference = paystackReference.Trim();
+        MarkUpdated();
+    }
+
+    public void ResumeFromComplianceFix()
+    {
+        EscrowStatus = EscrowStatus.Active;
+        foreach (EscrowMilestone milestone in _milestones.Where(m => m.Status == MilestoneStatus.Frozen))
+        {
+            milestone.Unfreeze();
+        }
+
+        MarkUpdated();
+    }
+
+    public void MarkCompletedIfAllSettled()
+    {
+        if (_milestones.Count > 0 && _milestones.All(m => m.Status is MilestoneStatus.Released or MilestoneStatus.Refunded))
+        {
+            EscrowStatus = EscrowStatus.Completed;
+            MarkUpdated();
+        }
+    }
 }

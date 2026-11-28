@@ -121,6 +121,11 @@ if (hangfireEnabled)
         "compliance-expiry-scanner",
         s => s.ScanAsync(CancellationToken.None),
         "0 22 * * *");
+
+    app.Services.GetRequiredService<IRecurringJobManager>().AddOrUpdate<IEscrowPayoutJob>(
+        "escrow-milestone-payout",
+        j => j.ProcessDueMilestonesAsync(null, CancellationToken.None),
+        "0 4 * * *");
 }
 
 app.MapControllers();

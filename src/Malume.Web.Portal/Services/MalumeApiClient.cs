@@ -3,6 +3,7 @@ using System.Text.Json;
 using Malume.Shared.Contracts.Compliance;
 using Malume.Shared.Contracts.Drivers;
 using Malume.Shared.Contracts.Endorsements;
+using Malume.Shared.Contracts.Escrow;
 using Malume.Shared.Contracts.Health;
 using Malume.Shared.Contracts.Tenants;
 using Malume.Shared.Contracts.Trips;
@@ -234,6 +235,59 @@ public sealed class MalumeApiClient(HttpClient httpClient)
         HttpResponseMessage response = await _httpClient.GetAsync(path, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<SchoolGateBoardDto>(cancellationToken: cancellationToken))!;
+    }
+
+    public async Task<IReadOnlyList<SubscriptionEscrowDto>> ListEscrowSubscriptionsAsync(
+        CancellationToken cancellationToken = default)
+    {
+        HttpResponseMessage response = await _httpClient.GetAsync("api/v1/escrow/subscriptions", cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        return (await response.Content.ReadFromJsonAsync<IReadOnlyList<SubscriptionEscrowDto>>(cancellationToken: cancellationToken)) ?? [];
+    }
+
+    public async Task<WalletLedgerSummaryDto> GetWalletLedgerAsync(
+        CancellationToken cancellationToken = default)
+    {
+        HttpResponseMessage response = await _httpClient.GetAsync("api/v1/escrow/ledger", cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        return (await response.Content.ReadFromJsonAsync<WalletLedgerSummaryDto>(cancellationToken: cancellationToken))!;
+    }
+
+    public async Task<FleetDto> ConfigureFleetSubaccountAsync(
+        ConfigureFleetSubaccountRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        HttpResponseMessage response = await _httpClient.PostAsJsonAsync(
+            "api/v1/payments/fleets/mine/subaccount",
+            request,
+            cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        return (await response.Content.ReadFromJsonAsync<FleetDto>(cancellationToken: cancellationToken))!;
+    }
+
+    public async Task<EscrowPayoutRunResultDto> RunEscrowPayoutsAsync(
+        DateOnly? asOfDate = null,
+        CancellationToken cancellationToken = default)
+    {
+        string path = asOfDate.HasValue
+            ? $"api/v1/admin/jobs/escrow-payouts?asOfDate={asOfDate.Value:yyyy-MM-dd}"
+            : "api/v1/admin/jobs/escrow-payouts";
+        HttpResponseMessage response = await _httpClient.PostAsync(path, null, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        return (await response.Content.ReadFromJsonAsync<EscrowPayoutRunResultDto>(cancellationToken: cancellationToken))!;
+    }
+
+    public async Task<ProRataRefundResponse> IssueProRataRefundAsync(
+        Guid subscriptionId,
+        string reason,
+        CancellationToken cancellationToken = default)
+    {
+        HttpResponseMessage response = await _httpClient.PostAsJsonAsync(
+            $"api/v1/escrow/subscriptions/{subscriptionId}/pro-rata-refund",
+            new ProRataRefundRequest(reason),
+            cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        return (await response.Content.ReadFromJsonAsync<ProRataRefundResponse>(cancellationToken: cancellationToken))!;
     }
 
     private static async Task EnsureSuccessAsync(HttpResponseMessage response, CancellationToken cancellationToken)
