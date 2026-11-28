@@ -1,8 +1,10 @@
 using Malume.Application.Abstractions.Identity;
 using Malume.Application.Abstractions.Persistence;
+using Malume.Application.Abstractions.Security;
 using Malume.Infrastructure.Identity;
 using Malume.Infrastructure.Persistence;
 using Malume.Infrastructure.Persistence.Repositories;
+using Malume.Infrastructure.Security;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -18,6 +20,7 @@ public static class DependencyInjection
         ArgumentNullException.ThrowIfNull(configuration);
 
         services.Configure<JwtOptions>(configuration.GetSection(JwtOptions.SectionName));
+        services.Configure<QrSigningOptions>(configuration.GetSection(QrSigningOptions.SectionName));
 
         services.AddDbContext<MalumeDbContext>((serviceProvider, options) =>
         {
@@ -38,6 +41,7 @@ public static class DependencyInjection
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddSingleton<IPasswordHasher, Pbkdf2PasswordHasher>();
         services.AddSingleton<IJwtTokenGenerator, JwtTokenGenerator>();
+        services.AddSingleton<IQrBadgeSigner, EcdsaQrBadgeSigner>();
 
         return services;
     }

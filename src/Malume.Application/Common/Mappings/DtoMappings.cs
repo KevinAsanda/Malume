@@ -2,6 +2,8 @@ using Malume.Domain.Entities;
 using Malume.Shared.Contracts.Compliance;
 using Malume.Shared.Contracts.Drivers;
 using Malume.Shared.Contracts.Endorsements;
+using Malume.Shared.Contracts.Learners;
+using Malume.Shared.Contracts.Routes;
 using Malume.Shared.Contracts.Tenants;
 using Malume.Shared.Contracts.Vehicles;
 
@@ -100,5 +102,50 @@ public static class DtoMappings
             endorsement.Notes,
             endorsement.IsActive,
             endorsement.EndorsedAtUtc);
+    }
+
+    public static LearnerDto ToDto(this Learner learner)
+    {
+        ArgumentNullException.ThrowIfNull(learner);
+
+        return new LearnerDto(
+            learner.Id,
+            learner.ParentUserId,
+            learner.SchoolId,
+            learner.FullName,
+            learner.Grade,
+            learner.HomePickupPoint.Latitude,
+            learner.HomePickupPoint.Longitude,
+            learner.HomeAddressText,
+            learner.EmergencyContactPhone);
+    }
+
+    public static ScheduledRouteDto ToDto(this ScheduledRoute route)
+    {
+        ArgumentNullException.ThrowIfNull(route);
+
+        return new ScheduledRouteDto(
+            route.Id,
+            route.VehicleId,
+            route.DriverProfileId,
+            route.SchoolId,
+            route.RouteName,
+            route.Direction.ToString(),
+            route.MonthlyPrice.Amount,
+            route.ActiveSubscribedSeats,
+            route.IsActive);
+    }
+
+    public static RouteEnrollmentDto ToDto(this Subscription subscription)
+    {
+        ArgumentNullException.ThrowIfNull(subscription);
+
+        return new RouteEnrollmentDto(
+            subscription.Id,
+            subscription.RouteId,
+            subscription.LearnerId,
+            subscription.BillingYearMonth,
+            subscription.TotalAmount.Amount,
+            subscription.EscrowStatus.ToString());
     }
 }

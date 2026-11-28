@@ -1,5 +1,6 @@
 using FluentValidation;
 using Malume.Application.Abstractions.Jobs;
+using Malume.Application.Abstractions.Realtime;
 using Malume.Application.Common.Behaviors;
 using Malume.Application.Features.Compliance;
 using MediatR;
@@ -22,6 +23,7 @@ public static class DependencyInjection
 
         services.AddValidatorsFromAssembly(assembly);
         services.TryAddSingleton(TimeProvider.System);
+        services.TryAddSingleton<ITripRealtimeNotifier, NullTripRealtimeNotifier>();
         services.AddScoped<EscrowFreezeService>();
         services.AddScoped<IComplianceExpiryScanner, ComplianceExpiryScanner>();
 
